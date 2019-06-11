@@ -22,7 +22,7 @@ AWS Transit Gateway is a service that enables customers to connect their Amazon 
 With AWS Transit Gateway, you only have to create and manage a single connection from the central gateway in to each Amazon VPC, on-premises data center, or remote office across your network. Transit Gateway acts as a hub that controls how traffic is routed among all the connected networks which act like spokes. This hub and spoke model significantly simplifies management and reduces operational costs because each network only has to connect to the Transit Gateway and not to every other network. Any new VPC is simply connected to the Transit Gateway and is then automatically available to every other network that is connected to the Transit Gateway. This ease of connectivity makes it easy to scale your network as you grow.
 
 
-The deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://github.com/jharris10/transitgateway/blob/master/Documentation/AWS_Transit_Gateway_deployment_guide.docx?raw=true)
+The deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://github.com/wwce/aws-cft-transitgateway-demo/blob/master/Documentation/AWS_Transit_Gateway_deployment_guide.docx?raw=true)
 
 ![alt_text](https://github.com/jharris10/transitgateway/blob/master/Documentation/images/TransitGateway.png "topology")
 
