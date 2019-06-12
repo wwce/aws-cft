@@ -84,7 +84,6 @@ Parameters:
     Description: AWS NAT Gateway Comma-delimited list of CIDR blocks
     Type: CommaDelimitedList
     Default: 192.168.31.0/24, 192.168.32.0/24
-  
   FWInstanceType:
     Type: String
     Default: m4.xlarge
@@ -143,6 +142,14 @@ Parameters:
       - rate(10 minutes)
       - rate(60 minutes)
     Type: String
+  LaunchAutoscaleVpc:
+    Default: 'No'
+    ConstraintDescription: Must be Yes or No
+    Type: String
+    Description: Select a Value
+    AllowedValues:
+      - 'Yes'
+      - 'No'
 Mappings:
   AWSNATAMI:
     us-east-1:
@@ -429,6 +436,7 @@ Metadata:
         default: Sumamry Route for spoke VPCs the template assumes a 10.0.0.0/8 block
       preempt:
         default: Enable or Disable route table preempt
+
 Resources:
   LambdaSchedulePermission:
     Type: "AWS::Lambda::Permission"
@@ -1798,6 +1806,7 @@ Resources:
           transitGatewayid : !Ref 'TransitGateway'
           region: !Ref 'AWS::Region'
           InitFWStateMachine: !Ref InitFWStateMachine
+          VpcSummaryRoute: !Ref 'VpcSummaryRoute'
       
       Runtime: python3.6
       Timeout: '150'
