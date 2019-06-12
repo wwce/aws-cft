@@ -1430,6 +1430,7 @@ Resources:
           vpc1HostRouteTableid: 'Null'
           region: !Ref 'AWS::Region'
           InitFWStateMachine: !Ref InitFWStateMachine
+          transitGatewayid: !Ref TGWId
       
       Runtime: python3.6
       Timeout: '150'
