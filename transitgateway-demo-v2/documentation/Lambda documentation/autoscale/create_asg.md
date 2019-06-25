@@ -1,9 +1,10 @@
-Help on module create_asg:
+
 
 NAME
     create_asg
 
 DESCRIPTION
+
     /*****************************************************************************
      * Copyright (c) 2019, Palo Alto Networks. All rights reserved.              *
      *                                                                           *
@@ -268,62 +269,4 @@ FUNCTIONS
     remove_asg_life_cycle(asg_name)
         :param asg_name:
         :return:
-
-DATA
-    ASGNotifierRole = ''
-    ASGNotifierRolePolicy = ''
-    LambdaENISNSTopic = ''
-    LambdaExecutionRole = ''
-    LambdaS3Bucket = ''
-    MaximumInstancesASG = 3
-    MinInstancesASG = 1
-    Region = 'eu-west-1'
-    ScaleDownThreshold = 30
-    ScaleUpThreshold = 50
-    ScalingParameter = ''
-    ScalingPeriod = 300
-    SubnetIDLambda = ''
-    SubnetIDNATGW = ''
-    asg = <botocore.client.AutoScaling object>
-    asg_delay = 30
-    asg_tag_key = 'PANW-ASG'
-    cloudwatch = <botocore.client.CloudWatch object>
-    cw_func_add_alarms = {'DataPlaneCPUUtilizationPct': <function AddDataP...
-    cw_func_del_alarms = {'DataPlaneCPUUtilizationPct': <function DelDataP...
-    dig = True
-    ec2 = ec2.ServiceResource()
-    ec2_client = <botocore.client.EC2 object>
-    enable_s3 = False
-    error_line = '--ERROR--'
-    events_client = <botocore.client.CloudWatchEvents object>
-    iam = <botocore.client.IAM object>
-    iamprofilebs = ''
-    imageID = ''
-    instanceType = ''
-    keyname = ''
-    lambda_client = <botocore.client.Lambda object>
-    logger = <RootLogger root (INFO)>
-    num_fw_az = 2
-    num_nlb_port = 1280
-    password = ''
-    print_function = _Feature((2, 6, 0, 'alpha', 2), (3, 0, 0, 'alpha', 0)...
-    region = ''
-    routetableidtrust = ''
-    s3 = <botocore.client.S3 object>
-    s3master = ''
-    sg_mgmt = ''
-    sg_trust = ''
-    sg_untrust = ''
-    sg_vpc = ''
-    stackname = ''
-    start_nlb_port = 81
-    subnetmgmt = ''
-    subnettrust = ''
-    subnetuntrust = ''
-    username = ''
-    vpcid = ''
-
-FILE
-    /Users/jharris/Documents/PycharmProjects/wwce/aws-cft/transitgateway-demo-v2/lambda-src/autoscale/create_asg.py
-
 

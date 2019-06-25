@@ -4,6 +4,7 @@ NAME
     createDbTable
 
 DESCRIPTION
+
     # /*****************************************************************************
     # * Copyright (c) 2019, Palo Alto Networks. All rights reserved.              *
     # *                                                                           *
@@ -29,6 +30,7 @@ DESCRIPTION
     # Author: Justin Harris <jharris@paloaltonetworks.com>
 
 FUNCTIONS
+
     createBGPTunnelIpTable(tableName)
         Updates BgpTunnelIpPool table with  attributes IpSegment, N1T1, N1T2, N2T1, N2T2 and Available=YES
     
@@ -37,11 +39,3 @@ FUNCTIONS
         :param event:
         :param context:
         :return:
-
-DATA
-    logger = <RootLogger root (INFO)>
-
-FILE
-    /Users/jharris/Documents/PycharmProjects/wwce/aws-cft/transitgateway-demo-v2/lambda-src/autoscale/createDbTable.py
-
-
