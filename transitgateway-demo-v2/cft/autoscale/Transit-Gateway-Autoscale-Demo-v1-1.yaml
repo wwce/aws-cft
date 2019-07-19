@@ -532,7 +532,7 @@ Resources:
           username: !Ref 'username'
           password: !Ref 'password'
           license_api_key: !Ref 'FWLicenseApiKey'
-          tgwRouteTableId: !Ref 'TransitGatewayRouteTableId'
+          tgwRouteId: !Ref 'TransitGatewayRouteTableId'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
         S3Key: config-fw_v1.1.zip
