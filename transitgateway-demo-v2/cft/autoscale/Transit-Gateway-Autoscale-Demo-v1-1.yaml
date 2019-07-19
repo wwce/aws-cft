@@ -501,7 +501,7 @@ Resources:
           password: !Ref 'password'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
-        S3Key: add_eni.zip
+        S3Key: add_eni_v1.1.zip
       Runtime: python3.6
       Timeout: 300
       VpcConfig:
@@ -535,7 +535,7 @@ Resources:
           tgwRouteTableId: !Ref 'TransitGatewayRouteTableId'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
-        S3Key: config-fw.zip
+        S3Key: config-fw_v1.1.zip
       Runtime: python3.6
       Timeout: 800
       VpcConfig:
