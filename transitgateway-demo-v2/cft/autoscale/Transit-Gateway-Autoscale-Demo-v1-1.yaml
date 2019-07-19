@@ -1,0 +1,1494 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Transit Gateway AutoScalling Perimeter Firewall.
+Parameters:
+  VPCName:
+    Description: Name of the newly created VPC
+    Type: String
+    MinLength: '6'
+    MaxLength: '24'
+    Default: panwVPC
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to
+    Type: AWS::EC2::KeyPair::KeyName
+  BootstrapS3BucketName:
+    Description: Bucket name for Internet Gateway bootstrap configuration
+    Type: String
+  LambdaBucketName:
+    Description: Bucket name where lambda scripts reside
+    Type: String
+  TransitGatewayId:
+    Description: Transit Gateway Id
+    Type: String
+  TransitGatewayRouteTableId:
+    Description: The transit gateway route table that the vpn will attach to
+    Type: String
+  username:
+    Type: String
+    Description: Firewall Username
+  password:
+    Type: String
+    Description: Firewall password
+  ASNNumber:
+    Type: String
+    Default: 65003
+    Description: BGP ASN Number for firewalls
+  FWInstanceType:
+    Type: String
+    Default: m4.xlarge
+    AllowedValues:
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+    Description: Enter the instance type and size for the VM-Series firewall
+  FWLicenseType:
+    Type: String
+    Default: Bundle1
+    AllowedValues:
+      - Bundle1
+      - Bundle2
+      - BYOL
+    Description: Enter the license type for the Firewall
+  FWLicenseApiKey:
+    Type: String
+    Description:  API key for licensing firewalls (From support portal account)
+  VpcAzs:
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+    Description: Enter the list of Availability Zones (Based on Number of AZs above)
+  SSHLocation:
+    Description: Restrict SSH access to the VM-Series firewall (enter a valid CIDR
+      range in the format of x.x.x.x/x)
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid CIDR range in the format of x.x.x.x/x
+  Debug:
+    Type: String
+    Default: 'No'
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+    Description: Enable/Disable debug. Default is disabled
+Mappings:
+  ASGScaleMap:
+    MinInstances:
+      ASG: '0'
+    MaxInstances:
+      ASG: '2'
+    ScaleUpThreshold:
+      ASG: '80'
+    ScaleDownThreshold:
+      ASG: '20'
+    ScalingParam:
+      CPU: DataPlaneCPUUtilizationPct
+      AS: panSessionActive
+      SU: panSessionUtilization
+      SSPU: panSessionSslProxyUtilization
+      GPU: panGPGatewayUtilizationPct
+      GPAT: panGPGWUtilizationActiveTunnels
+      DPB: DataPlanePacketBufferUtilization
+    ScalingPeriod:
+      ASG: '900'
+  AWSRegionArch2AMI:
+    us-east-1:
+      Bundle1: ami-ce01c0b3
+      Bundle2: ami-bffd3cc2
+      BYOL: ami-a2fa3bdf
+    us-east-2:
+      Bundle1: ami-10f3c575
+      Bundle2: ami-9ef3c5fb
+      BYOL: ami-11e1d774
+    us-west-1:
+      Bundle1: ami-235b4f43
+      Bundle2: ami-854551e5
+      BYOL: ami-a95b4fc9
+    us-west-2:
+      Bundle1: ami-8a22b3f2
+      Bundle2: ami-9a29b8e2
+      BYOL: ami-d424b5ac
+    ca-central-1:
+      Bundle1: ami-dd0582b9
+      Bundle2: ami-57048333
+      BYOL: ami-64038400
+    eu-central-1:
+      Bundle1: ami-1bbdd574
+      Bundle2: ami-1ebdd571
+      BYOL: ami-55bfd73a
+    eu-west-1:
+      Bundle1: ami-edb0fe94
+      Bundle2: ami-1fb1ff66
+      BYOL: ami-62b5fb1b
+    eu-west-2:
+      Bundle1: ami-f46a8d93
+      Bundle2: ami-c4688fa3
+      BYOL: ami-876a8de0
+    ap-southeast-1:
+      Bundle1: ami-55bced29
+      Bundle2: ami-36bdec4a
+      BYOL: ami-27baeb5b
+    ap-southeast-2:
+      Bundle1: ami-aed112cc
+      Bundle2: ami-add013cf
+      BYOL: ami-00d61562
+    ap-northeast-2:
+      Bundle1: ami-4eb81420
+      Bundle2: ami-a8bf13c6
+      BYOL: ami-49bd1127
+    ap-northeast-1:
+      Bundle1: ami-39662d5f
+      Bundle2: ami-75652e13
+      BYOL: ami-57662d31
+    ap-south-1:
+      Bundle1: ami-d385dcbc
+      Bundle2: ami-ee80d981
+      BYOL: ami-e780d988
+    sa-east-1:
+      Bundle1: ami-9e0154f2
+      Bundle2: ami-d80653b4
+      BYOL: ami-9c0154f0
+  CidrBlockMap:
+    VpcCidrBlock:
+      CidrBlock: 172.16.0.0/16
+    MgmtCidrBlock:
+      CidrBlockAz1: 172.16.0.0/24
+      CidrBlockAz2: 172.16.10.0/24
+      CidrBlockAz3: 172.16.20.0/24
+      CidrBlockAz4: 172.16.30.0/24
+    UntrustCidrBlock:
+      CidrBlockAz1: 172.16.1.0/24
+      CidrBlockAz2: 172.16.11.0/24
+      CidrBlockAz3: 172.16.21.0/24
+      CidrBlockAz4: 172.16.31.0/24
+    TrustCidrBlock:
+      CidrBlockAz1: 172.16.2.0/24
+      CidrBlockAz2: 172.16.12.0/24
+      CidrBlockAz3: 172.16.22.0/24
+      CidrBlockAz4: 172.16.32.0/24
+    NatGwCidrBlock:
+      CidrBlockAz1: 172.16.100.0/24
+      CidrBlockAz2: 172.16.101.0/24
+      CidrBlockAz3: 172.16.102.0/24
+      CidrBlockAz4: 172.16.103.0/24
+    LambdaCidrBlock:
+      CidrBlockAz1: 172.16.200.0/24
+      CidrBlockAz2: 172.16.201.0/24
+      CidrBlockAz3: 172.16.202.0/24
+      CidrBlockAz4: 172.16.203.0/24
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: VPC and TGW Configuration
+        Parameters:
+          - VPCName
+          - VpcAzs
+          - TransitGatewayId
+          - TransitGatewayRouteTableId
+      - Label:
+          default: VM-Series firewall Instance configuration
+        Parameters:
+          - FWInstanceType
+          - FWLicenseType
+          - username
+          - password
+          - ASNNumber
+          - KeyName
+      - Label:
+          default: S3 Bucket details
+        Parameters:
+          - BootstrapS3BucketName
+          - LambdaBucketName
+    ParameterLabels:
+      KeyName:
+        default: 'Key pair:'
+      BootstrapS3BucketName:
+        default: Bootstrap bucket for VM-Series firewalls
+      LambdaBucketName:
+        default: 'S3 Bucket Name for Lambda Code:'
+      username:
+        default: 'Admin username for Firewall in bootstrap:'
+      password:
+        default: Admin password for Firewall im bootstrap
+      VpcAzs:
+        default: 'Select  AZs:'
+Resources:
+  BootstrapRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: BootstrapRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Join
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - !Ref 'BootstrapS3BucketName'
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Join
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - !Ref 'BootstrapS3BucketName'
+                    - /*
+  BootstrapInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'BootstrapRole'
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join
+        - '-'
+        - - TransitLambdaExecutionRole
+          - !Ref 'AWS::StackName'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+  LambdaExecutionPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join
+        - '-'
+        - - TransitLambdaExecutionPolicy
+          - !Ref 'AWS::StackName'
+      Roles:
+        - !Ref 'LambdaExecutionRole'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - autoscaling:*
+            Resource:
+              - '*'
+          - Sid: STSAccumRole
+            Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource:
+              - '*'
+          - Sid: InvokeLambda
+            Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+              - lambda:ListLayerVersions
+              - lambda:ListLayers
+              - lambda:DeleteFunction
+              - lambda:CreateFunction
+            Resource:
+              - '*'
+          - Action:
+              - iam:UpdateAssumeRolePolicy
+              - iam:GetRole
+              - iam:PassRole
+            Resource:
+              - '*'
+            Effect: Allow
+            Sid: IAMActions
+          - Action:
+              - cloudformation:*
+            Resource:
+              - '*'
+            Effect: Allow
+            Sid: CloudFormationActions
+          - Action:
+              - ec2:*
+            Resource:
+              - '*'
+            Effect: Allow
+            Sid: EC2FullAccess
+          - Sid: StateMachineActions
+            Effect: Allow
+            Action:
+              - states:ListExecutions
+              - states:StartExecution
+            Resource:
+              - '*'
+          - Sid: DynamoDbActions
+            Effect: Allow
+            Action:
+              - dynamodb:CreateTable
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:ListTables
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:TagResource
+              - dynamodb:UpdateItem
+              - dynamodb:UpdateTable
+            Resource:
+              - '*'
+          - Sid: Logs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:PutMetricFilter
+            Resource:
+              - '*'
+          - Sid: S3Actions
+            Effect: Allow
+            Action:
+              - s3:GetBucketAcl
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:ListBucket
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:PutObjectTagging
+              - s3:DeleteBucket
+              - s3:DeleteBucketPolicy
+              - s3:DeleteObject
+            Resource:
+              - '*'
+          - Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutDestination
+              - logs:PutDestinationPolicy
+              - logs:PutLogEvents
+              - logs:PutMetricFilter
+            Resource:
+              - '*'
+          - Effect: Allow
+            Action:
+              - cloudwatch:*
+            Resource:
+              - '*'
+          - Effect: Allow
+            Action:
+              - ec2:AllocateAddress
+              - ec2:AssociateAddress
+              - ec2:AssociateRouteTable
+              - ec2:AttachInternetGateway
+              - ec2:AttachNetworkInterface
+              - ec2:CreateNetworkInterface
+              - ec2:CreateTags
+              - ec2:CreateRoute
+              - ec2:CreateVpcEndpoint
+              - ec2:DeleteNetworkInterface
+              - ec2:DeleteRouteTable
+              - ec2:DeleteRoute
+              - ec2:DeleteSecurityGroup
+              - ec2:DeleteTags
+              - ec2:DeleteVpcEndpoints
+              - ec2:DescribeAddresses
+              - ec2:DescribeAvailabilityZones
+              - ec2:DescribeVpcEndpointServices
+              - ec2:DescribeInstanceAttribute
+              - ec2:DescribeInstanceStatus
+              - ec2:DescribeInstances
+              - ec2:DescribeImages
+              - ec2:DescribeNatGateways
+              - ec2:DescribeNetworkInterfaceAttribute
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeTags
+              - ec2:DescribeVpcEndpoints
+              - ec2:DescribeVpcs
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DetachInternetGateway
+              - ec2:DetachNetworkInterface
+              - ec2:DetachVolume
+              - ec2:DisassociateAddress
+              - ec2:DisassociateRouteTable
+              - ec2:ModifyNetworkInterfaceAttribute
+              - ec2:ModifySubnetAttribute
+              - ec2:MonitorInstances
+              - ec2:RebootInstances
+              - ec2:ReleaseAddress
+              - ec2:ReportInstanceStatus
+              - ec2:TerminateInstances
+              - ec2:DescribeIdFormat
+            Resource:
+              - '*'
+  LambdaENISNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !GetAtt 'AddENILambda.Arn'
+          Protocol: lambda
+  LambdaENIPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt 'AddENILambda.Arn'
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref 'LambdaENISNSTopic'
+  ASLambdalayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.6
+        - python3.7
+      Content:
+        S3Bucket: !Ref 'LambdaBucketName'
+        S3Key: layer.zip
+      Description: Autoscale Layer
+      LayerName: as-layer
+      LicenseInfo: MIT
+  BgpTunnelIpPool:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: IpSegment
+          AttributeType: S
+      KeySchema:
+        - AttributeName: IpSegment
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: !Join
+        - '-'
+        - - BgpTunnelIpPool
+          - !Ref 'AWS::StackName'
+    DependsOn:
+      - NAT1
+  AddENILambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: add_eni.add_eni_lambda_handler
+      Role: !GetAtt 'LambdaExecutionRole.Arn'
+      Layers:
+        - !Ref 'ASLambdalayer'
+      Environment:
+        Variables:
+          lambda_bucket_name: !Ref 'LambdaBucketName'
+          config_fw_arn: !GetAtt 'ConfigFwLambda.Arn'
+          StackName: !Ref 'AWS::StackName'
+          Region: !Ref 'AWS::Region'
+          username: !Ref 'username'
+          password: !Ref 'password'
+      Code:
+        S3Bucket: !Ref 'LambdaBucketName'
+        S3Key: add_eni.zip
+      Runtime: python3.6
+      Timeout: 300
+      VpcConfig:
+        SubnetIds:
+          - !Ref 'LambdaSubnetAz1'
+          - !Ref 'LambdaSubnetAz2'
+        SecurityGroupIds:
+          - !Ref 'VPCSecurityGroup'
+    DependsOn:
+      - LambdaExecutionRole
+      - VPCSecurityGroup
+  ConfigFwLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: config-fw.config_fw_lambda_handler
+      Role: !GetAtt 'LambdaExecutionRole.Arn'
+      Layers:
+        - !Ref 'ASLambdalayer'
+      Environment:
+        Variables:
+          table_name: !Join
+            - '-'
+            - - BgpTunnelIpPool
+              - !Ref 'AWS::StackName'
+          tgwId: !Ref 'TransitGatewayId'
+          Region: !Ref 'AWS::Region'
+          N1Asn: !Ref 'ASNNumber'
+          username: !Ref 'username'
+          password: !Ref 'password'
+          license_api_key: !Ref 'FWLicenseApiKey'
+          tgwRouteTableId: !Ref 'TransitGatewayRouteTableId'
+      Code:
+        S3Bucket: !Ref 'LambdaBucketName'
+        S3Key: config-fw.zip
+      Runtime: python3.6
+      Timeout: 800
+      VpcConfig:
+        SubnetIds:
+          - !Ref 'LambdaSubnetAz1'
+          - !Ref 'LambdaSubnetAz2'
+        SecurityGroupIds:
+          - !Ref 'VPCSecurityGroup'
+    DependsOn:
+      - LambdaExecutionRole
+      - VPCSecurityGroup
+  TGWAutoscaleInitialiseLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Creates the BGP Tunnel IP Pool Table
+      Handler: createDbTable.createDbtable_lambda_handler
+      Role: !GetAtt 'LambdaExecutionRole.Arn'
+      Layers:
+        - !Ref 'ASLambdalayer'
+      Environment:
+        Variables:
+          table_name: !Join
+            - '-'
+            - - BgpTunnelIpPool
+              - !Ref 'AWS::StackName'
+      Code:
+        S3Bucket: !Ref 'LambdaBucketName'
+        S3Key: createDbTable.zip
+      Runtime: python3.6
+      Timeout: 150
+    DependsOn:
+      - BgpTunnelIpPool
+  CreateAsgLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: create_asg.lambda_handler
+      Role: !GetAtt 'LambdaExecutionRole.Arn'
+      Layers:
+        - !Ref 'ASLambdalayer'
+      Environment:
+        Variables:
+          Region: !Ref 'AWS::Region'
+      Code:
+        S3Bucket: !Ref 'LambdaBucketName'
+        S3Key: create_asg.zip
+      Runtime: python3.6
+      Timeout: 600
+    DependsOn:
+      - LambdaExecutionRole
+      - NAT1
+      - NAT2
+  InitialiseAutoscaleTables:
+    Type: AWS::CloudFormation::CustomResource
+    DependsOn:
+      - VPCSecurityGroup
+    Properties:
+      ServiceToken: !GetAtt 'TGWAutoscaleInitialiseLambda.Arn'
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - VpcCidrBlock
+        - CidrBlock
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: MGMT
+        - Key: Name
+          Value: !Ref 'VPCName'
+  LambdaSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '0'
+        - !Ref 'VpcAzs'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - LambdaCidrBlock
+        - CidrBlockAz1
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: LambdaFunction
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - LambdaSubnetAz1
+    DependsOn:
+      - VPC
+  LambdaSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '1'
+        - !Ref 'VpcAzs'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - LambdaCidrBlock
+        - CidrBlockAz2
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: LambdaFunction
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - LambdaSubnetAz2
+    DependsOn:
+      - VPC
+  LambdaRouteTableAz1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - LambdaRouteTableAz1
+    DependsOn:
+      - VPC
+  LambdaRouteTableAz2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - LambdaRouteTableAz2
+    DependsOn:
+      - VPC
+  NATGWSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '0'
+        - !Ref 'VpcAzs'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - NatGwCidrBlock
+        - CidrBlockAz1
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: NATGW
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - NATGWSubnetAz1
+    DependsOn:
+      - VPC
+  NATGWSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '1'
+        - !Ref 'VpcAzs'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - NatGwCidrBlock
+        - CidrBlockAz2
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: NATGW
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - NATGWSubnetAz2
+    DependsOn:
+      - VPC
+  EIP1:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    DependsOn:
+      - VPC
+      - GatewayToInternet
+      - InternetGateway
+  EIP2:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    DependsOn:
+      - VPC
+      - GatewayToInternet
+      - InternetGateway
+  NAT1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'EIP1.AllocationId'
+      SubnetId: !Ref 'NATGWSubnetAz1'
+    DependsOn:
+      - VPC
+      - EIP1
+      - NATGWSubnetAz1
+      - GatewayToInternet
+  NAT2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'EIP2.AllocationId'
+      SubnetId: !Ref 'NATGWSubnetAz2'
+    DependsOn:
+      - VPC
+      - EIP2
+      - NATGWSubnetAz2
+      - GatewayToInternet
+  MGMTSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '0'
+        - !Ref 'VpcAzs'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - MgmtCidrBlock
+        - CidrBlockAz1
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: MGMT
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - MGMTSubnetAz1
+    DependsOn:
+      - VPC
+  MGMTSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '1'
+        - !Ref 'VpcAzs'
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - MgmtCidrBlock
+        - CidrBlockAz2
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: MGMT
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - MGMTSubnetAz2
+    DependsOn:
+      - VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: MGMT
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - InternetGateway
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'VPC'
+      InternetGatewayId: !Ref 'InternetGateway'
+    DependsOn:
+      - InternetGateway
+  NATGWRouteTableAz1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - NATGWRouteTableAz1
+    DependsOn:
+      - VPC
+  NATGWRouteTableAz2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - NATGWRouteTableAz2
+    DependsOn:
+      - VPC
+  NATGWRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'NATGWRouteTableAz1'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+    DependsOn:
+      - NATGWRouteTableAz1
+      - GatewayToInternet
+  NATGWRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'NATGWRouteTableAz2'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+    DependsOn:
+      - NATGWRouteTableAz2
+      - GatewayToInternet
+  MGMTRouteTableAz1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - MGMTRouteTableAz1
+    DependsOn:
+      - VPC
+  MGMTRouteTableAz2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - MGMTRouteTableAz2
+    DependsOn:
+      - VPC
+  LambdaRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'LambdaRouteTableAz1'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NAT1'
+    DependsOn:
+      - NAT1
+  LambdaRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'LambdaRouteTableAz2'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NAT2'
+    DependsOn:
+      - NAT2
+  MGMTRouteNAT1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'MGMTRouteTableAz1'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NAT1'
+    DependsOn:
+      - NAT1
+  MGMTRouteNAT2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'MGMTRouteTableAz2'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NAT2'
+    DependsOn:
+      - NAT2
+  LambdaSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'LambdaSubnetAz1'
+      RouteTableId: !Ref 'LambdaRouteTableAz1'
+    DependsOn:
+      - LambdaRouteTableAz1
+      - LambdaSubnetAz1
+  LambdaSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'LambdaSubnetAz2'
+      RouteTableId: !Ref 'LambdaRouteTableAz2'
+    DependsOn:
+      - LambdaRouteTableAz2
+      - LambdaSubnetAz2
+  NAT1SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'NATGWSubnetAz1'
+      RouteTableId: !Ref 'NATGWRouteTableAz1'
+    DependsOn:
+      - NATGWRouteTableAz1
+      - NATGWSubnetAz1
+  NAT2SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'NATGWSubnetAz2'
+      RouteTableId: !Ref 'NATGWRouteTableAz2'
+    DependsOn:
+      - NATGWRouteTableAz2
+      - NATGWSubnetAz2
+  MGMTSubnetRouteTableAssociationNAT1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'MGMTSubnetAz1'
+      RouteTableId: !Ref 'MGMTRouteTableAz1'
+    DependsOn:
+      - MGMTRouteNAT1
+      - MGMTSubnetAz1
+  MGMTSubnetRouteTableAssociationNAT2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'MGMTSubnetAz2'
+      RouteTableId: !Ref 'MGMTRouteTableAz2'
+    DependsOn:
+      - MGMTSubnetAz2
+  UNTRUSTSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '0'
+        - !Ref 'VpcAzs'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - UntrustCidrBlock
+        - CidrBlockAz1
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: UNTRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - UNTRUSTSubnet1
+    DependsOn:
+      - VPC
+  UNTRUSTSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '1'
+        - !Ref 'VpcAzs'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - UntrustCidrBlock
+        - CidrBlockAz2
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: UNTRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - UNTRUSTSubnet2
+    DependsOn:
+      - VPC
+  UNTRUSTRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: UNTRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - UNTRUSTRouteTable
+  UNTRUSTRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'UNTRUSTRouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+    DependsOn:
+      - GatewayToInternet
+      - UNTRUSTRouteTable
+  UNTRUSTSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'UNTRUSTSubnet1'
+      RouteTableId: !Ref 'UNTRUSTRouteTable'
+    DependsOn:
+      - UNTRUSTRoute
+      - UNTRUSTSubnet1
+  UNTRUSTSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'UNTRUSTSubnet2'
+      RouteTableId: !Ref 'UNTRUSTRouteTable'
+    DependsOn:
+      - UNTRUSTRoute
+      - UNTRUSTSubnet2
+  TRUSTSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '0'
+        - !Ref 'VpcAzs'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - TrustCidrBlock
+        - CidrBlockAz1
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: TRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - TRUSTSubnet1
+    DependsOn:
+      - VPC
+      - InternetGateway
+  TRUSTSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - '1'
+        - !Ref 'VpcAzs'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - CidrBlockMap
+        - TrustCidrBlock
+        - CidrBlockAz2
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: TRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - TRUSTSubnet2
+    DependsOn:
+      - VPC
+      - InternetGateway
+  TrustRouteTableAz1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: TRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - TrustRouteTableAz1
+    DependsOn:
+      - VPC
+  TrustRouteTableAz2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Network
+          Value: TRUST
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - TrustRouteTableAz2
+    DependsOn:
+      - VPC
+  TrustRouteNAT1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'TrustRouteTableAz1'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NAT1'
+    DependsOn:
+      - NAT1
+  TrustRouteNAT2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'TrustRouteTableAz2'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NAT2'
+    DependsOn:
+      - NAT2
+  TRUSTSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'TRUSTSubnet1'
+      RouteTableId: !Ref 'TrustRouteTableAz1'
+    DependsOn:
+      - TRUSTSubnet1
+  TRUSTSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'TRUSTSubnet2'
+      RouteTableId: !Ref 'TrustRouteTableAz2'
+    DependsOn:
+      - TRUSTSubnet2
+  MgmtSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH to MGMT interface
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - !Ref 'AWS::StackName'
+              - MgmtSecurityGroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref 'SSHLocation'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref 'SSHLocation'
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !FindInMap
+            - CidrBlockMap
+            - VpcCidrBlock
+            - CidrBlock
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !FindInMap
+            - CidrBlockMap
+            - VpcCidrBlock
+            - CidrBlock
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+  UntrustSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for Untrust interface
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - !Ref 'AWS::StackName'
+              - UntrustSecurityGroup
+      SecurityGroupIngress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+  TrustSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for trust interface
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - !Ref 'AWS::StackName'
+              - TrustSecurityGroup
+      SecurityGroupIngress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+  VPCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for within VPC
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - ''
+            - - !Ref 'AWS::StackName'
+              - VPCSecurityGroup
+      SecurityGroupIngress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSH inbound allowed
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Name
+          Value: SSH_ONLY
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+  HTTPSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTPS inbound allowed
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Name
+          Value: HTTPS_ONLY
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: '0.0.0.0/0'
+  PAVMAWSPublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for PA-VM-AWS external interface
+      VpcId: !Ref 'VPC'
+      SecurityGroupIngress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+    DependsOn: VPC
+  ASGNotifierRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - autoscaling.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+  ASGNotifierRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Ref 'AWS::StackName'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sns:Publish
+            Resource: !Ref 'LambdaENISNSTopic'
+      Roles:
+        - !Ref 'ASGNotifierRole'
+    DependsOn:
+      - ASGNotifierRole
+      - LambdaENISNSTopic
+  FirewallBootstrapRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: FirewallBootstrapRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Join
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - !Ref 'BootstrapS3BucketName'
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Join
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - !Ref 'BootstrapS3BucketName'
+                    - /*
+              - Effect: Allow
+                Action:
+                  - cloudwatch:*
+                Resource:
+                  - '*'
+  FirewallBootstrapInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'FirewallBootstrapRole'
+    DependsOn:
+      - FirewallBootstrapRole
+  LambdaCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Version: '1.0'
+    DependsOn:
+      - CreateAsgLambda
+      - TrustSecurityGroup
+      - UntrustSecurityGroup
+      - MgmtSecurityGroup
+      - VPCSecurityGroup
+    Properties:
+      ServiceToken: !GetAtt 'CreateAsgLambda.Arn'
+      StackName: !Ref 'AWS::StackName'
+      Region: !Ref 'AWS::Region'
+      VpcId: !Ref 'VPC'
+      SubnetIDMgmt:
+        - !Join
+          - ','
+          - - !Ref 'MGMTSubnetAz1'
+            - !Ref 'MGMTSubnetAz2'
+      SubnetIDUntrust:
+        - !Join
+          - ','
+          - - !Ref 'UNTRUSTSubnet1'
+            - !Ref 'UNTRUSTSubnet2'
+      SubnetIDTrust:
+        - !Join
+          - ','
+          - - !Ref 'TRUSTSubnet1'
+            - !Ref 'TRUSTSubnet2'
+      RouteTableIDTrust:
+        - !Join
+          - ','
+          - - !Ref 'TrustRouteTableAz1'
+            - !Ref 'TrustRouteTableAz2'
+      MgmtSecurityGroup: !Ref 'MgmtSecurityGroup'
+      UntrustSecurityGroup: !Ref 'UntrustSecurityGroup'
+      TrustSecurityGroup: !Ref 'TrustSecurityGroup'
+      VPCSecurityGroup: !Ref 'VPCSecurityGroup'
+      KeyName: !Ref 'KeyName'
+      FWInstanceType: !Ref 'FWInstanceType'
+      MinInstancesASG: !FindInMap
+        - ASGScaleMap
+        - MinInstances
+        - ASG
+      MaximumInstancesASG: !FindInMap
+        - ASGScaleMap
+        - MaxInstances
+        - ASG
+      ScaleUpThreshold: !FindInMap
+        - ASGScaleMap
+        - ScaleUpThreshold
+        - ASG
+      ScaleDownThreshold: !FindInMap
+        - ASGScaleMap
+        - ScaleDownThreshold
+        - ASG
+      ScalingParameter: !FindInMap
+        - ASGScaleMap
+        - ScalingParam
+        - CPU
+      ScalingPeriod: !FindInMap
+        - ASGScaleMap
+        - ScalingPeriod
+        - ASG
+      ImageID: !FindInMap
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !Ref 'FWLicenseType'
+      LambdaENISNSTopic: !Ref 'LambdaENISNSTopic'
+      FirewallBootstrapRole: !Ref 'FirewallBootstrapInstanceProfile'
+      LambdaExecutionRole: !Ref 'LambdaExecutionRole'
+      ASGNotifierRole: !GetAtt 'ASGNotifierRole.Arn'
+      ASGNotifierRolePolicy: !Ref 'ASGNotifierRolePolicy'
+      BootstrapS3BucketName: !Ref 'BootstrapS3BucketName'
+      LambdaS3Bucket: !Ref 'LambdaBucketName'
+      SubnetIDNATGW:
+        - !Join
+          - ','
+          - - !Ref 'NATGWSubnetAz1'
+            - !Ref 'NATGWSubnetAz2'
+      SubnetIDLambda:
+        - !Join
+          - ','
+          - - !Ref 'LambdaSubnetAz1'
+            - !Ref 'LambdaSubnetAz2'
+      InitLambda: !Ref 'CreateAsgLambda'
+      Debug: !Ref 'Debug'
+      username: !Ref 'username'
+      password: !Ref 'password'
