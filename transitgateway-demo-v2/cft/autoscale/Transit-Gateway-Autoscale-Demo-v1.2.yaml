@@ -22,6 +22,9 @@ Parameters:
   TransitGatewayRouteTableId:
     Description: The transit gateway route table that the vpn will attach to
     Type: String
+  TransitGatewayRouteTablePropagationTag:
+    Description: Tag  VPN routes key = Role value =VPN_Propagate_Routes
+    Type: String
   username:
     Type: String
     Description: Firewall Username
@@ -499,6 +502,7 @@ Resources:
           Region: !Ref 'AWS::Region'
           username: !Ref 'username'
           password: !Ref 'password'
+          tgw_rt_tag: !Ref 'TransitGatewayRouteTablePropagationTag'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
         S3Key: add_eni_v1.1.zip
@@ -533,6 +537,7 @@ Resources:
           password: !Ref 'password'
           license_api_key: !Ref 'FWLicenseApiKey'
           tgwRouteId: !Ref 'TransitGatewayRouteTableId'
+          tgw_rt_tag: !Ref 'TransitGatewayRouteTablePropagationTag'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
         S3Key: config-fw_v1.1.zip
@@ -1183,6 +1188,24 @@ Resources:
       RouteTableId: !Ref 'TrustRouteTableAz2'
     DependsOn:
       - TRUSTSubnet2
+
+  SecurityVPCAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    DependsOn:
+      - TRUSTSubnet1
+      - TRUSTSubnet1
+    Properties:
+      VpcId: !Ref 'VPC'
+      TransitGatewayId: !Ref 'TransitGatewayId'
+      SubnetIds:
+        - !Ref 'TRUSTSubnet1'
+        - !Ref 'TRUSTSubnet2'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - attach-sec
   MgmtSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -1470,7 +1493,15 @@ Resources:
       ImageID: !FindInMap
         - AWSRegionArch2AMI
         - !Ref 'AWS::Region'
-        - !Ref 'FWLicenseType'
+        - 'Bundle2'
+      ByolImageID: !FindInMap
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - 'BYOL'
+      Bundle2ImageID: !FindInMap
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - 'Bundle2'
       LambdaENISNSTopic: !Ref 'LambdaENISNSTopic'
       FirewallBootstrapRole: !Ref 'FirewallBootstrapInstanceProfile'
       LambdaExecutionRole: !Ref 'LambdaExecutionRole'
