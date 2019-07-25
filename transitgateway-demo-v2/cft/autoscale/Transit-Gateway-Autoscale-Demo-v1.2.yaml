@@ -490,7 +490,7 @@ Resources:
   AddENILambda:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: add_eni.add_eni_lambda_handler
+      Handler: add_eni_v1.1.add_eni_lambda_handler
       Role: !GetAtt 'LambdaExecutionRole.Arn'
       Layers:
         - !Ref 'ASLambdalayer'
@@ -520,7 +520,7 @@ Resources:
   ConfigFwLambda:
     Type: AWS::Lambda::Function
     Properties:
-      Handler: config-fw.config_fw_lambda_handler
+      Handler: config-fw_v1.1.config_fw_lambda_handler
       Role: !GetAtt 'LambdaExecutionRole.Arn'
       Layers:
         - !Ref 'ASLambdalayer'
