@@ -8,10 +8,10 @@ This build is an adaptation of the [AWS VM-Series Autoscaling 2.0](https://docs.
 
 ### Requirements
 * An existing Transit Gateway
-* An existing Transit Gateway route table for the Spoke-VPC attachment (application VPC) and Security-VPC attachment.
+* An existing Transit Gateway route table for the Spoke-VPC attachment (application VPC)
 * An existing Transit Gateway route table for the Security-VPC attachment
-* S3 Bucket for VM-Series bootstrapping
-* S3 Bucket for Lambda functionality
+* S3 Bucket for VM-Series bootstrap
+* S3 Bucket for Lambda code
 
 
 ### How to Deploy
