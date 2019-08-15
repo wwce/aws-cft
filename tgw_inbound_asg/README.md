@@ -1,5 +1,5 @@
 ## VM-Series Autoscaling for Inbound TGW
-This build is an adaptation of the [AWS VM-Series Autoscaling 2.0](https://docs.paloaltonetworks.com/vm-series/8-1/vm-series-deployment/set-up-the-vm-series-firewall-on-aws/auto-scale-vm-series-firewalls-with-the-amazon-elb/autoscale-template-version2_0.html).
+This build is an adaptation of the [AWS VM-Series Autoscaling 2.0](https://docs.paloaltonetworks.com/vm-series/8-1/vm-series-deployment/set-up-the-vm-series-firewall-on-aws/auto-scale-vm-series-firewalls-with-the-amazon-elb/autoscale-template-version2_0.html) to work function with AWS Transit Gateway.
 
 ### Overview
 <p align="center">
