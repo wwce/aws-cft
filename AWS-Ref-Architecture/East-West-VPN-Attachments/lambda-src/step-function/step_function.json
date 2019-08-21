@@ -1,0 +1,93 @@
+{
+  "Comment": "FW-VPN state function.",
+  "StartAt": "FirstState",
+  "States": {
+    "FirstState": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:FUNCTION_NAME",
+      "Next": "aws_vpn_configured"
+    },
+    "aws_vpn_configured": {
+      "Type" : "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Action",
+          "StringEquals": "config_fw",
+          "Next": "config_fw"
+        },
+        {
+          "Variable": "$.action",
+          "StringEquals": "failed",
+          "Next": "delete_aws_vpn"
+        }
+      ],
+      "Default": "DefaultState"
+    },
+    "config_fw": {
+      "Type" : "Task",
+      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnFirstMatch",
+      "Next": "fw_configured"
+    },
+    "fw_configured": {
+      "Type" : "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Action",
+          "StringEquals": "config_fw_complete",
+          "Next": "create_panw_vpn"
+        },
+        {
+          "Variable": "$.action",
+          "StringEquals": "failed",
+          "Next": "delete_aws_vpn"
+        }
+      ],
+      "Default": "DefaultState"
+    },
+
+    "create_panw_vpn": {
+        "Type" : "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnFirstMatch",
+        "Next": "panw_vpn_configured"
+      },
+      "panw_vpn_configured": {
+        "Type" : "Choice",
+        "Choices": [
+          {
+            "Variable": "$.Action",
+            "StringEquals": "fw_vpn_complete",
+            "Next": "create_panw_vpn"
+          },
+          {
+            "Variable": "$.action",
+            "StringEquals": "failed",
+            "Next": "delete_fw_vpn"
+          }
+        ],
+        "Default": "DefaultState"
+      },
+
+    "delete_fw_vpn": {
+      "Type" : "Task",
+      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnSecondMatch",
+      "Next": "delete_aws_vpn"
+    },
+    "delete_aws_vpn": {
+        "Type" : "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnSecondMatch",
+        "Next": "delete_aws_vpn"
+    },
+
+    "DefaultState": {
+      "Type": "Fail",
+      "Error": "DefaultStateError",
+      "Cause": "No Matches!"
+    },
+
+    "EndState": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:FUNCTION_NAME",
+      "End": true
+    }
+  }
+}
