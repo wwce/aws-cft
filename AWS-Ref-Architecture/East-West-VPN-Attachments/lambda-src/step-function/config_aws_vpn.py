@@ -50,6 +50,8 @@ tgwId = os.environ['tgwId']
 pa_asn = os.environ['N1Asn']
 fw1_untrust_pub_ip = os.environ['fw1UntrustPubIp']
 fw2_untrust_pub_ip = os.environ['fw2UntrustPubIp']
+fw1_untrust_sec_pub_ip = os.environ['fw1UntrustSecPubIp']
+fw2_untrust_sec_pub_ip = os.environ['fw2UntrustSecPubIp']
 fw1instanceId = os.environ['fw1instanceId']
 fw2instanceId = os.environ['fw2instanceId']
 lambda_bucket_name = os.environ['lambda_bucket_name']
@@ -297,7 +299,6 @@ def create_tgw_vpn(fwUntrustPubIP, pa_asn, Region, cgw1Tag, table_name, tgwId, b
 def lambda_handler(event, context):
     logger.info("Got Event {}".format(event))
 
-
     cgw1Tag = fw1instanceId
     cgw2Tag = fw2instanceId
     tag1 = fw1instanceId
@@ -308,18 +309,32 @@ def lambda_handler(event, context):
 
     logger.info('created fw1 vpn with vpnId {}'.format(fw1_vpnId))
 
+    fw1_sec_vpnId, fw1_sec_cgwId = create_tgw_vpn(fw1_untrust_sec_pub_ip, pa_asn, Region, cgw1Tag, table_name, tgwId,
+                                                  lambda_bucket_name, tag1, fw1instanceId)
+
+    logger.info('created fw1 secondary vpn with vpnId {}'.format(fw1_vpnId))
+
     fw2_vpnId, fw2_cgwId = create_tgw_vpn(fw2_untrust_pub_ip, pa_asn, Region, cgw2Tag, table_name, tgwId,
                                           lambda_bucket_name, tag2, fw2instanceId)
 
     logger.info('created fw2 vpn with vpnId {}'.format(fw2_vpnId))
+
+    fw2_sec_vpnId, fw2_sec_cgwId = create_tgw_vpn(fw2_untrust_sec_pub_ip, pa_asn, Region, cgw2Tag, table_name, tgwId,
+                                                  lambda_bucket_name, tag2, fw2instanceId)
+
+    logger.info('created fw1 secondary vpn with vpnId {}'.format(fw1_vpnId))
     data = {
         'fw1_vpnId': fw1_vpnId,
         'fw1_cgwId': fw1_cgwId,
         'fw2_vpnId': fw2_vpnId,
-        'fw2_cgwId': fw2_cgwId
+        'fw2_cgwId': fw2_cgwId,
+        'fw1_sec_vpnId': fw1_sec_vpnId,
+        'fw1_sec_cgwId': fw1_sec_cgwId,
+        'fw2_sec_vpnId': fw2_sec_vpnId,
+        'fw2_sec_cgwId': fw2_sec_cgwId
     }
 
-    if fw1_vpnId and fw2_vpnId:
+    if fw1_vpnId and fw2_vpnId and fw1_sec_vpnId and fw2_sec_vpnId:
         data.update({'Action': 'config_aws_success'})
         return data
 

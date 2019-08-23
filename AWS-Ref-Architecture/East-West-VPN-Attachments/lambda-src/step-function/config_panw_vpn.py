@@ -37,6 +37,21 @@ import sys
 import time
 
 Region = os.environ['Region']
+fw1_mgmt_ip = os.environ['fw1MgmtIp']
+fw2_mgmt_ip = os.environ['fw2MgmtIp']
+fw1_untrust_ip = os.environ['fw1UntrustIp']
+fw2_untrust_ip = os.environ['fw2UntrustIp']
+fw1_untrust_sec_ip = os.environ['fw2UntrustSecIp']
+fw2_untrust_sec_ip = os.environ['fw2UntrustSecIp']
+fw1_trust_ip = os.environ['fw1TrustIp']
+fw2_trust_ip = os.environ['fw2TrustIp']
+trustAZ1_subnet = os.environ['trustAZ1Subnet']
+trustAZ2_subnet = os.environ['trustAZ2Subnet']
+untrustAZ1_subnet = os.environ['untrustAZ1Subnet']
+untrustAZ2_subnet = os.environ['untrustAZ2Subnet']
+api_key = os.environ['apikey']
+lambda_bucket_name = os.environ['lambda_bucket_name']
+
 
 sys.path.append('asglib/')
 import tgwaslib as lib
@@ -269,7 +284,8 @@ def getFirewallStatus(gwMgmtIp, api_key):
             # The fw is still not ready to accept commands
             # so invoke lambda again and do this all over? Or just retry command?
 
-def create_panw_vpn(gwMgmtPubIp,api_key, bucketName, vpnId):
+
+def create_panw_vpn(gwMgmtPubIp, api_key, bucketName, vpnId, src_ip):
 
     vpnConfDict = lib.loadVpnConfigFromS3(bucketName, vpnId)
     # Returns Dict
@@ -294,9 +310,9 @@ def create_panw_vpn(gwMgmtPubIp,api_key, bucketName, vpnId):
     logger.info('resource_id is {} from vpnConfDict {}'.format(resource_id, vpnConfDict))
 
     peerGroup = 'tgw-out'
-    confVpnStatus = lib.pa_configure_vpn(gwMgmtPubIp, api_key, vpnConfDict, peerGroup,
-                                     ikeProfile="default", ipsecProfile="default",
-                                     pa_dmz_inf="ethernet1/1", virtualRouter="default", zone="Untrust")
+    confVpnStatus = lib.pa_configure_vpn(gwMgmtPubIp, api_key, vpnConfDict, peerGroup, src_ip,
+                                         ikeProfile="default", ipsecProfile="default",
+                                         pa_dmz_inf="ethernet1/1", virtualRouter="default", zone="Untrust")
     if not confVpnStatus:
         lib.pan_rollback(gwMgmtPubIp, api_key)
         return False
@@ -309,19 +325,11 @@ def create_panw_vpn(gwMgmtPubIp,api_key, bucketName, vpnId):
 def lambda_handler(event, context):
     fw1_vpnId = event.get('fw1_vpnId')
     fw2_vpnId = event.get('fw2_vpnId')
+    fw1_sec_vpnId = event.get('fw1_sec_vpnId')
+    fw2_sec_vpnId = event.get('fw2_sec_vpnId')
     logger.info("Got Event {}".format(event))
 
-    Region = os.environ['Region']
-    fw1_mgmt_ip = os.environ['fw1MgmtIp']
-    fw2_mgmt_ip = os.environ['fw2MgmtIp']
-    fw1_trust_ip = os.environ['fw1TrustIp']
-    fw2_trust_ip = os.environ['fw2TrustIp']
-    trustAZ1_subnet = os.environ['trustAZ1Subnet']
-    trustAZ2_subnet = os.environ['trustAZ2Subnet']
-    untrustAZ1_subnet = os.environ['untrustAZ1Subnet']
-    untrustAZ2_subnet = os.environ['untrustAZ2Subnet']
-    api_key = os.environ['apikey']
-    lambda_bucket_name = os.environ['lambda_bucket_name']
+
 
     trustAZ1_subnet_cidr = find_subnet_by_id(trustAZ1_subnet)['CidrBlock']
     logger.info('Trust AZ1 subnet is {}'.format(trustAZ1_subnet_cidr))
@@ -332,12 +340,19 @@ def lambda_handler(event, context):
     untrustAZ2_subnet_cidr = lib.find_subnet_by_id(untrustAZ2_subnet)['CidrBlock']
     logger.info('Untrust AZ2 subnet is {}'.format(untrustAZ2_subnet_cidr))
 
+    logger.info(
+        'called create_panw_vpn {}\n{}\n{}'.format(fw1_trust_ip, lambda_bucket_name, fw1_vpnId, 'fw_untrust_int'))
+    fw1_vpn_status = create_panw_vpn(fw1_mgmt_ip, api_key, lambda_bucket_name, fw1_vpnId, 'fw_untrust_int')
+    logger.info(
+        'called create_panw_vpn {}\n{}\n{}'.format(fw2_trust_ip, lambda_bucket_name, fw2_vpnId, 'fw_untrust_int'))
+    fw2_vpn_status = create_panw_vpn(fw2_mgmt_ip, api_key, lambda_bucket_name, fw2_vpnId, 'fw_untrust_int')
 
-    logger.info('called create_panw_vpn {}\n{}\n{}'.format( fw1_trust_ip, lambda_bucket_name, fw1_vpnId))
-    fw1_vpn_status = create_panw_vpn(fw1_mgmt_ip, api_key, lambda_bucket_name, fw1_vpnId)
-    logger.info('called create_panw_vpn {}\n{}\n{}'.format( fw2_trust_ip, lambda_bucket_name, fw2_vpnId))
-    fw2_vpn_status = create_panw_vpn(fw2_mgmt_ip, api_key, lambda_bucket_name, fw2_vpnId)
-
+    logger.info('called create_panw_vpn {}\n{}\n{}'.format(fw1_mgmt_ip, lambda_bucket_name, fw1_sec_vpnId,
+                                                           'fw_untrust_sec_int'))
+    fw1_sec_vpn_status = create_panw_vpn(fw1_mgmt_ip, api_key, lambda_bucket_name, fw1_sec_vpnId, 'fw_untrust_sec_int')
+    logger.info('called create_panw_vpn {}\n{}\n{}'.format(fw2_mgmt_ip, lambda_bucket_name, fw2_sec_vpnId,
+                                                           'fw_untrust_sec_int'))
+    fw2_sec_vpn_status = create_panw_vpn(fw2_mgmt_ip, api_key, lambda_bucket_name, fw2_sec_vpnId, 'fw_untrust_sec_int')
     # time.sleep(300)
 
     if fw1_vpn_status and fw2_vpn_status:

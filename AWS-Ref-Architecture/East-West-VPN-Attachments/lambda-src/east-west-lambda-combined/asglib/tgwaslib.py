@@ -863,6 +863,12 @@ def create_ike_gateway(hostname, api_key, name, psk, ikeProfile, pa_dmz_inf, pee
 
     return pan_set_config(hostname, api_key, xpath, element)
 
+    xpath2 = "/config/devices/entry[@name='localhost.localdomain']/network/ike/gateway/entry[@name='{0}']/local-address".format(
+        name)
+    element2 = "<ip>{0}</ip>".format(src_ip)
+
+    pan_set_config(hostname, api_key, xpath2, element2)
+
 
 def create_ipsec_tunnel_Inf(hostname, api_key, tunnelInfId, tunnelInfIp="ip/30", mtu=1427):
     """Function to create tunnel interface to use with IPsec

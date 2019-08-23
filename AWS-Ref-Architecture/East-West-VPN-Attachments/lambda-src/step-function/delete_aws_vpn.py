@@ -40,6 +40,7 @@ dynamodb = boto3.resource('dynamodb', region_name=Region)
 lambda_client = boto3.client('lambda')
 ec2_client = boto3.client('ec2')
 
+
 def release_ips(tablename, vpnId):
     """
     When the Firewall is terminated we release the IP addresses from the IP pool and release them in the
@@ -102,33 +103,41 @@ def lambda_handler(event, context):
     # Delete vgw connections
     fw1_vpnId = event.get('fw1_vpnId')
     fw2_vpnId = event.get('fw2_vpnId')
+    fw1_sec_vpnId = event.get('fw1_sec_vpnId')
+    fw2_sec_vpnId = event.get('fw2_sec_vpnId')
+    fw1_cgwId = event.get('fw1_cgwId')
+    fw2_cgwId = event.get('fw2_cgwId')
+    fw1_sec_cgwId = event.get('fw1_sec_cgwId')
+    fw2_sec_cgwId = event.get('fw2_sec_cgwId')
     if fw1_vpnId:
         if delete_vpn_connection(fw1_vpnId):
             release_ips(table_name, fw1_vpnId)
-    if event.get('fw2_vpnId'):
+    if fw2_vpnId:
         if delete_vpn_connection(fw2_vpnId):
             release_ips(table_name, fw2_vpnId)
 
-    if event.get('fw1_cgwId'):
-        fw1_cgwId = event.get('fw1_cgwId')
+    if fw1_cgwId:
         if delete_cgw(fw1_cgwId):
             logger.info('Deleted cgw {}'.format(fw1_cgwId))
-        else:
-            logger.info('Failed to delete cgw {}'.format(fw1_cgwId))
-
-    if event.get('fw2_cgwId'):
-        fw2_cgwId = event.get('fw2_cgwId')
+    if fw2_cgwId:
         if delete_cgw(fw2_cgwId):
             logger.info('Deleted cgw {}'.format(fw2_cgwId))
-        else:
-            logger.info('Failed to delete cgw {}'.format(fw2_cgwId))
 
+    if fw1_sec_vpnId:
+        if delete_vpn_connection(fw1_sec_vpnId):
+            release_ips(table_name, fw1_sec_vpnId)
+    if fw2_sec_vpnId:
+        if delete_vpn_connection(fw2_sec_vpnId):
+            release_ips(table_name, fw2_sec_vpnId)
+
+    if fw1_sec_cgwId:
+        if delete_cgw(fw1_sec_cgwId):
+            logger.info('Deleted cgw {}'.format(fw1_sec_cgwId))
+    if fw2_sec_cgwId:
+        if delete_cgw(fw2_sec_cgwId):
+            logger.info('Deleted cgw {}'.format(fw2_sec_cgwId))
     return
 
-if __name__ == '__main__':
-    event =  {'Action': 'config_aws_success', 'fw1_vpnId': 'vpn-0577fe5af7886b864', 'fw1_cgwId': 'cgw-052eab2f86ad268f2', 'fw2_vpnId': 'vpn-087d41b11805723de', 'fw2_cgwId': 'cgw-0b005ff553ad9a190'}
-    context = ''
-    lambda_handler(event,context)
 
 
 

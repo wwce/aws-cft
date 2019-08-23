@@ -10099,12 +10099,13 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                 <ndp-proxy>
                   <enabled>no</enabled>
                 </ndp-proxy>
-                <dhcp-client>
-                  <create-default-route>yes</create-default-route>
-                </dhcp-client>
                 <lldp>
                   <enable>no</enable>
                 </lldp>
+                  <ip>
+                      <entry name="fw_untrust_int"/>
+                      <entry name="fw_untrust_sec_int"/>
+                  </ip>
               </layer3>
             </entry>
             <entry name="ethernet1/2">
@@ -10130,20 +10131,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
             </entry>
           </ethernet>
           <tunnel>
-            <units>
-              <entry name="tunnel.1">
-                <ip>
-                  <entry name="169.254.0.98/30"/>
-                </ip>
-                <mtu>1427</mtu>
-              </entry>
-              <entry name="tunnel.2">
-                <ip>
-                  <entry name="169.254.0.102/30"/>
-                </ip>
-                <mtu>1427</mtu>
-              </entry>
-            </units>
+              <units/>
           </tunnel>
         </interface>
         <profiles>
@@ -10265,82 +10253,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
               </entry>
             </global-protect-app-crypto-profiles>
           </crypto-profiles>
-          <gateway>
-            <entry name="ike-vpn-087b77a3412b0cbc4-0">
-              <authentication>
-                <pre-shared-key>
-                  <key>-AQ==j5RdQExNwVzA5QTxLapc2kqJ+G0=1GnVEKZ3cZFOnN69X36LoQOkCzlsrhsfAPZ8J6wbgqrG4qlYpAP52y2lEb2x0W0K</key>
-                </pre-shared-key>
-              </authentication>
-              <protocol>
-                <ikev1>
-                  <dpd>
-                    <enable>yes</enable>
-                    <interval>10</interval>
-                    <retry>3</retry>
-                  </dpd>
-                  <ike-crypto-profile>default</ike-crypto-profile>
-                  <exchange-mode>main</exchange-mode>
-                </ikev1>
-                <ikev2>
-                  <dpd>
-                    <enable>yes</enable>
-                  </dpd>
-                </ikev2>
-              </protocol>
-              <protocol-common>
-                <nat-traversal>
-                  <enable>no</enable>
-                </nat-traversal>
-                <fragmentation>
-                  <enable>no</enable>
-                </fragmentation>
-              </protocol-common>
-              <local-address>
-                <interface>ethernet1/1</interface>
-              </local-address>
-              <peer-address>
-                <ip>18.200.179.4</ip>
-              </peer-address>
-            </entry>
-            <entry name="ike-vpn-087b77a3412b0cbc4-1">
-              <authentication>
-                <pre-shared-key>
-                  <key>-AQ==ezX/xCqu/v4rsL6mOfVBznd/yVE=MT7XJWedgn3sINI2eFN5HjCh6IrimtYkN5UpxSymhTtq0HknkHnCv7Se8B8iciE7</key>
-                </pre-shared-key>
-              </authentication>
-              <protocol>
-                <ikev1>
-                  <dpd>
-                    <enable>yes</enable>
-                    <interval>10</interval>
-                    <retry>3</retry>
-                  </dpd>
-                  <ike-crypto-profile>default</ike-crypto-profile>
-                  <exchange-mode>main</exchange-mode>
-                </ikev1>
-                <ikev2>
-                  <dpd>
-                    <enable>yes</enable>
-                  </dpd>
-                </ikev2>
-              </protocol>
-              <protocol-common>
-                <nat-traversal>
-                  <enable>no</enable>
-                </nat-traversal>
-                <fragmentation>
-                  <enable>no</enable>
-                </fragmentation>
-              </protocol-common>
-              <local-address>
-                <interface>ethernet1/1</interface>
-              </local-address>
-              <peer-address>
-                <ip>52.209.133.46</ip>
-              </peer-address>
-            </entry>
-          </gateway>
+            <gateway/>
         </ike>
         <qos>
           <profile>
@@ -10394,7 +10307,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <enable>yes</enable>
                   </graceful-restart>
                 </routing-options>
-                <router-id>1.1.1.1</router-id>
+                  <router-id>63.33.251.17</router-id>
                 <local-as>65003</local-as>
                 <redist-rules>
                   <entry name="default">
@@ -10500,7 +10413,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                 <static-route>
                   <entry name="vnet-local">
                     <nexthop>
-                      <ip-address>192.168.21.1</ip-address>
+                        <ip-address>10.253.130.1</ip-address>
                     </nexthop>
                     <bfd>
                       <profile>None</profile>
@@ -10531,15 +10444,37 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     </path-monitor>
                     <metric>10</metric>
                     <destination>10.0.0.0/12</destination>
-                    <route-table>
-                      <unicast/>
-                    </route-table>
+                      <route-table>
+                          <unicast/>
+                      </route-table>
                   </entry>
+                    <entry name="default">
+                        <nexthop>
+                            <ip-address>10.253.100.1</ip-address>
+                        </nexthop>
+                        <bfd>
+                            <profile>None</profile>
+                        </bfd>
+                        <path-monitor>
+                            <enable>no</enable>
+                            <failure-condition>any</failure-condition>
+                            <hold-time>2</hold-time>
+                        </path-monitor>
+                        <interface>ethernet1/1</interface>
+                        <metric>10</metric>
+                        <destination>0.0.0.0/0</destination>
+                        <route-table>
+                            <unicast/>
+                        </route-table>
+                    </entry>
                 </static-route>
               </ip>
             </routing-table>
           </entry>
         </virtual-router>
+          <tunnel>
+              <ipsec/>
+          </tunnel>
       </network>
       <deviceconfig>
         <system>
@@ -10711,7 +10646,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <member>any</member>
                   </source>
                   <destination>
-                    <member>Fw-Untrust-Int</member>
+                      <member>fw_untrust_pub_ip</member>
                   </destination>
                   <source-user>
                     <member>any</member>
@@ -10780,7 +10715,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <member>any</member>
                   </source>
                   <destination>
-                    <member>Fw-Untrust-Int</member>
+                      <member>fw_untrust_pub_ip</member>
                   </destination>
                   <service>tcp-8080</service>
                   <to-interface>ethernet1/1</to-interface>
@@ -10807,7 +10742,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <member>any</member>
                   </source>
                   <destination>
-                    <member>Fw-Untrust-Int</member>
+                      <member>fw_untrust_pub_ip</member>
                   </destination>
                   <service>tcp-2422</service>
                   <to-interface>ethernet1/1</to-interface>
@@ -10830,13 +10765,28 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
             <entry name="Fw-Untrust-Int">
               <ip-netmask>192.168.11.147</ip-netmask>
             </entry>
-            <entry name="Fw-Trust-Int">
-              <ip-netmask>192.168.21.163</ip-netmask>
-            </entry>
             <entry name="s3-file">
               <fqdn>www.google1.com</fqdn>
             </entry>
+              <entry name="fw_untrust_int">
+                  <ip-netmask>10.253.100.241/24</ip-netmask>
+              </entry>
+              <entry name="fw_trust_int">
+                  <ip-netmask>10.253.130.96</ip-netmask>
+              </entry>
+              <entry name="fw1_untrust_sec_pub_ip">
+                  <ip-netmask>10.253.100.186</ip-netmask>
+              </entry>
+              <entry name="fw_untrust_pub_ip">
+                  <ip-netmask>10.253.100.241</ip-netmask>
+              </entry>
+              <entry name="fw_untrust_sec_int">
+                  <ip-netmask>10.253.100.186/32</ip-netmask>
+              </entry>
           </address>
+            <profiles>
+                <custom-url-category/>
+            </profiles>
         </entry>
       </vsys>
     </entry>

@@ -41,7 +41,6 @@ import tgwaslib as lib
 
 from botocore.exceptions import ClientError
 
-
 pa_asn = os.environ['N1Asn']
 fw1_trust_ip = os.environ['fw1TrustIp']
 fw2_trust_ip = os.environ['fw2TrustIp']
@@ -49,8 +48,12 @@ fw1_mgmt_ip = os.environ['fw1MgmtIp']
 fw2_mgmt_ip = os.environ['fw2MgmtIp']
 fw1_untrust_ip = os.environ['fw1UntrustIp']
 fw2_untrust_ip = os.environ['fw2UntrustIp']
+fw1_untrust_sec_ip = os.environ['fw1UntrustSecIp']
+fw2_untrust_sec_ip = os.environ['fw2UntrustSecIp']
 fw1_untrust_pub_ip = os.environ['fw1UntrustPubIp']
 fw2_untrust_pub_ip = os.environ['fw2UntrustPubIp']
+fw1_untrust_sec_pub_ip = os.environ['fw1UntrustSecPubIp']
+fw2_untrust_sec_pub_ip = os.environ['fw2UntrustSecPubIp']
 trustAZ1_subnet = os.environ['trustAZ1Subnet']
 trustAZ2_subnet = os.environ['trustAZ2Subnet']
 untrustAZ1_subnet = os.environ['untrustAZ1Subnet']
@@ -80,6 +83,7 @@ class FWNotUpException(Exception):
 
     def __str__(self):
         return (repr(self.value))
+
 
 def find_subnet_by_id(subnet_id):
     """
@@ -143,14 +147,17 @@ def updateRouteNexthop(route, fwMgmtIp, entry_name, api_key, interface, subnetGa
 
     return panSetConfig(fwMgmtIp, api_key, xpath, element)
 
+
 def updateRouteNexthopDiscard(route, fwMgmtIp, entry_name, api_key, virtualRouter="default"):
     """
     """
     xpath = "/config/devices/entry[@name='localhost.localdomain']/network/" \
-            "virtual-router/entry[@name='{0}']/routing-table/ip/static-route/entry[@name='{1}']".format(virtualRouter, entry_name)
+            "virtual-router/entry[@name='{0}']/routing-table/ip/static-route/entry[@name='{1}']".format(virtualRouter,
+                                                                                                        entry_name)
     element = "<destination>{0}</destination><nexthop><discard/></nexthop>".format(route)
-              
+
     return panSetConfig(fwMgmtIp, api_key, xpath, element)
+
 
 def panEditConfig(fwMgmtIp, api_key, xpath, element):
     """
@@ -288,7 +295,7 @@ def getFirewallStatus(gwMgmtIp, api_key):
         logger.info("[INFO]: No response from FW. So maybe not up!")
         time.sleep(30)
         return 'no'
-        
+
     else:
         logger.info("[INFO]: FW is up!!")
 
@@ -316,21 +323,9 @@ def getFirewallStatus(gwMgmtIp, api_key):
             # so invoke lambda again and do this all over? Or just retry command?
 
 
-def initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw_mgmt_ip, fw_trust_ip, fw_untrust_pub_ip, fw_untrust_ip, api_key, trustAZ_subnet_cidr,
+def initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw_mgmt_ip, fw_trust_ip, fw_untrust_ip,
+                                fw_untrust_pub_ip, fw_untrust_sec_ip, api_key, trustAZ_subnet_cidr,
                                 untrustAZ_subnet_cidr, pa_asn):
-    """
-    Parse the repsonse from makeApiCall()
-    :param fw_trust_ip:
-    :param fw_untrust_ip:
-    :param api_key:
-    :param trustAZ_subnet_cidr:
-    :param fw_untrust_int:
-    :param fw_trust_int:
-    :return:
-    If we see the string 'yes' in the repsonse we will assume that the firewall is up and continue with the firewall
-    configuration
-    """
-
     err = 'no'
     while (True):
         err = getFirewallStatus(fw_mgmt_ip, api_key)
@@ -354,31 +349,34 @@ def initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw_mgmt_ip, f
     entry_name = 'vnet-local'
     interface = 'ethernet1/2'
     route = vpc_summary_route
-    response2 = updateRouteNexthop(vpc_cidr_block, fw_mgmt_ip, entry_name, api_key, interface, trustAZ_subnet_gw, virtualRouter="default")
+    response2 = updateRouteNexthop(vpc_cidr_block, fw_mgmt_ip, entry_name, api_key, interface, trustAZ_subnet_gw,
+                                   virtualRouter="default")
     logger.info('Response to update vpc_summary_route {}'.format(response2))
-    
+
     # Update next hop of static route to match subnet gw
     entry_name = 'default'
     interface = 'ethernet1/1'
     route = '0.0.0.0/0'
-    response3 = updateRouteNexthop(route, fw_mgmt_ip, entry_name, api_key, interface, untrustAZ_subnet_gw, virtualRouter="default")
+    response3 = updateRouteNexthop(route, fw_mgmt_ip, entry_name, api_key, interface, untrustAZ_subnet_gw,
+                                   virtualRouter="default")
     logger.info('Response to update default route {}'.format(response3))
-    
+
     # Update the vnet-local route with assigned vpc Cidr Block
     entry_name = 'vnets-summary'
     updateRouteNexthopDiscard(vpc_summary_route, fw_mgmt_ip, entry_name, api_key, virtualRouter="default")
-    
-    # Update an address object of the firewall.
-    object_name = 'fw_untrust_int'
-    editIpObject(fw_mgmt_ip, api_key, object_name, fw_untrust_ip)
-    object_name = 'fw_trust_int'
-    editIpObject(fw_mgmt_ip, api_key, object_name, fw_trust_ip)
-    editFqdnObject(fw_mgmt_ip, api_key, 's3-file', 'www.google1.com')
+
+    # Update an Untrust interface address objects of the firewall.
+
+    editIpObject(fw_mgmt_ip, api_key, 'fw_untrust_int', fw_untrust_ip + '/24')
+    editIpObject(fw_mgmt_ip, api_key, 'fw_untrust_sec_int', fw_untrust_sec_ip + '/32')
+
+    # Update an Trust interface address objects of the firewall.
+    editIpObject(fw_mgmt_ip, api_key, 'fw_trust_int', fw_trust_ip)
 
     # Update BGP router ID with public IP of eth1 and BGP ASN
     response2 = lib.update_routerId_asn(fw_mgmt_ip, api_key, fw_untrust_pub_ip, pa_asn)
     logger.info('Response to updateRouterIdAndAsn {}'.format(response2))
-    
+
     # Add ApiKey to deactivate License
     # response4 = lib.config_deactivate_license_apikey(fw_trust_ip, api_key, license_api_key)
     return True
@@ -391,9 +389,10 @@ def lambda_handler(event, context):
     fw2_vpnId = event.get('fw2_vpnId')
     fw1_cgwId = event.get('fw1_cgwId')
     fw2_cgwId = event.get('fw2_cgwId')
-
-    fw_untrust_int = 'Fw-Untrust-Int'
-    fw_trust_int = 'Fw-Trust-Int'
+    fw1_sec_vpnId = event.get('fw1_sec_vpnId')
+    fw2_sec_vpnId = event.get('fw2_sec_vpnId')
+    fw1_sec_cgwId = event.get('fw1_sec_cgwId')
+    fw2_sec_cgwId = event.get('fw2_sec_cgwId')
 
     trustAZ1_subnet_cidr = find_subnet_by_id(trustAZ1_subnet)['CidrBlock']
     logger.info('Trust AZ1 subnet is {}'.format(trustAZ1_subnet_cidr))
@@ -409,34 +408,42 @@ def lambda_handler(event, context):
     tag1 = fw1instanceId
     tag2 = fw2instanceId
 
-
-
-
-    res1 = initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw1_mgmt_ip, fw1_trust_ip, fw1_untrust_pub_ip, fw1_untrust_ip, api_key,
-                                       trustAZ1_subnet_cidr,
-                                       untrustAZ1_subnet_cidr, pa_asn)
+    res1 = initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw1_mgmt_ip, fw1_trust_ip, fw1_untrust_ip,
+                                       fw1_untrust_pub_ip, fw1_untrust_sec_ip, api_key,
+                                       trustAZ1_subnet_cidr, untrustAZ1_subnet_cidr, pa_asn)
 
     panCommit(fw1_mgmt_ip, api_key, message="Updated route table and address object")
 
-    res2= initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw2_mgmt_ip, fw2_trust_ip, fw2_untrust_pub_ip, fw2_untrust_ip, api_key,
-                                      trustAZ2_subnet_cidr,
-                                      untrustAZ2_subnet_cidr, pa_asn)
+    res2 = initial_setup_panw_firewall(vpc_summary_route, vpc_cidr_block, fw2_mgmt_ip, fw2_trust_ip, fw2_untrust_ip,
+                                       fw2_untrust_pub_ip, fw2_untrust_sec_ip, api_key,
+                                       trustAZ2_subnet_cidr, untrustAZ2_subnet_cidr, pa_asn)
 
     panCommit(fw2_mgmt_ip, api_key, message="Updated route table and address object")
 
     if res1 and res2:
-        data = {'Action':'config_fw_success',
-                'fw1_vpnId' : fw1_vpnId,
-                'fw2_vpnId' : fw2_vpnId
-                }
+        data = {
+            'Action': 'config_fw_success',
+            'fw1_vpnId': fw1_vpnId,
+            'fw1_cgwId': fw1_cgwId,
+            'fw2_vpnId': fw2_vpnId,
+            'fw2_cgwId': fw2_cgwId,
+            'fw1_sec_vpnId': fw1_sec_vpnId,
+            'fw1_sec_cgwId': fw1_sec_cgwId,
+            'fw2_sec_vpnId': fw2_sec_vpnId,
+            'fw2_sec_cgwId': fw2_sec_cgwId
+        }
     else:
         data = {
             'Action': 'config_aws_failed',
-            'fw1_vpnId' : fw1_vpnId,
-            'fw1_cgwId' : fw1_cgwId,
-            'fw2_vpnId' : fw2_vpnId,
-            'fw2_cgwId' : fw2_cgwId
-            }
+            'fw1_vpnId': fw1_vpnId,
+            'fw1_cgwId': fw1_cgwId,
+            'fw2_vpnId': fw2_vpnId,
+            'fw2_cgwId': fw2_cgwId,
+            'fw1_sec_vpnId': fw1_sec_vpnId,
+            'fw1_sec_cgwId': fw1_sec_cgwId,
+            'fw2_sec_vpnId': fw2_sec_vpnId,
+            'fw2_sec_cgwId': fw2_sec_cgwId
+        }
     return data
 
 

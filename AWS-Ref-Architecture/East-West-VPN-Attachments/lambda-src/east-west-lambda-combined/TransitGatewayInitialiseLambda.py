@@ -12,6 +12,8 @@ Two post deployment tasks are performed by the InitialiseFwlambda.py script asso
 
 This software is provided without support, warranty, or guarantee.
 Use at your own risk.
+
+jharris@paloaltonetworks.com
 """
 
 import logging
@@ -19,6 +21,7 @@ import os
 import boto3
 import cfnresponse
 import sys
+import time
 
 
 
@@ -65,16 +68,43 @@ def delete_route(route_table_id, destination_cidr_block):
     )
     logger.info("Got response to delete_route {} ".format(resp))
     return resp
-boto3.
-def start_state_function(state_machine_arn):
+
+
+def start_state_function(state_machine_arn, high_capacity_vm):
     sfnConnection = boto3.client('stepfunctions')
-    sfnConnection.start_execution(stateMachineArn=state_machine_arn)
-    if sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='RUNNING')[
-        'executions']:
-        logger.info("StateMachine is Running, hence exiting from execution")
+    if high_capacity_vm == 'Yes':
+        count = 2
     else:
-        logger.info("StateMachine is not Running, hence starting StepFunction")
-        sfnConnection.start_execution(stateMachineArn=state_machine_arn)
+        count = 1
+    success_count = len(
+        sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='SUCCEEDED')['executions'])
+    running_count = len(
+        sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='RUNNING')['executions'])
+
+    logger.info('Sstate machine running count is {} and success count is {}'.format(running_count, success_count))
+    step_function_arns = []
+    for i in range(count):
+        result = sfnConnection.start_execution(stateMachineArn=state_machine_arn)
+        logger.info('State maching ARN is {}'.format(result.get('executionArn')))
+        step_function_arns.append(result.get('executionArn'))
+        logger.info("Started StateMachine")
+        time.sleep(30)
+    time.sleep(30)
+    success_count = len(
+        sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='SUCCEEDED')['executions'])
+    running_count = len(
+        sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='RUNNING')['executions'])
+    failed_count = len(
+        sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='FAILED')['executions'])
+
+    logger.info('Sstate machine running count is {}, failed count is {} and success count is {}'.format(running_count,
+                                                                                                        failed_count,
+                                                                                                        success_count))
+    if (success_count + running_count) != count and failed_count > 0:
+        logger.info('An iteration has failed will try again')
+        result = sfnConnection.start_execution(stateMachineArn=state_machine_arn)
+        logger.info('State maching ARN is {}'.format(result.get('executionArn')))
+
 
 def get_vpn_connections():
 
@@ -117,6 +147,8 @@ def lambda_handler(event, context):
     transit_gateway_id = os.environ['transitGatewayid']
     init_fw_state_machine_arn = os.environ['InitFWStateMachine']
     vnetroutecidr = os.environ['VpcCidrBlock']
+    high_capacity_vm = os.environ['HighCapacityVM']
+    vpc_summary_route = os.environ['VpcSummaryRoute']
 
     responseData = {}
     responseData['data'] = 'Success'
@@ -127,26 +159,23 @@ def lambda_handler(event, context):
         if VPC0_route_table_id != 'Null':
             resp1 = add_route_tgw_nh(VPC1_route_table_id, defroutecidr, transit_gateway_id)
             logger.info("Got response to route update on VPC1 {} ".format(resp1))
-        
-        res2 = add_route_tgw_nh(toTGWRouteTable, vnetroutecidr, transit_gateway_id)
+
+        res2 = add_route_tgw_nh(toTGWRouteTable, vpc_summary_route, transit_gateway_id)
         logger.info("Got response to route update on SecVPC {} ".format(res2))
 
-        start_resp = start_state_function(init_fw_state_machine_arn)
+        start_resp = start_state_function(init_fw_state_machine_arn, high_capacity_vm)
         logger.info("Calling start state function {} ".format(start_resp))
         cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CustomResourcePhysicalID")
         logger.info("Sending cfn success message ")
 
     elif event['RequestType'] == 'Update':
         print("Update something")
+        cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CustomResourcePhysicalID")
 
     elif event['RequestType'] == 'Delete':
         print("Got Delete event")
-        try:
-            res = delete_route(toTGWRouteTable, vnetroutecidr)
-            res1 = delete_route(VPC0_route_table_id, defroutecidr)
+        pass
 
-        except Exception as e:
-            print("Errory trying to delete something")
         cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CustomResourcePhysicalID")
 
 

@@ -166,29 +166,29 @@ def create_vpn_propagation(attachment_id, tgw_route_table_id):
 
 
 if __name__ == '__main__':
-    import boto3
-    import requests
-    tgws = []
-    table_list = ec2_client.describe_transit_gateway_route_tables(Filters = [
-           {'Name':'tag:Propagate', 'Values':['EW']}
-          ])
-    tables = table_list.get('TransitGatewayRouteTables')
-    for table in tables:
-        tgws.append(table.get('TransitGatewayRouteTableId'))
-    attachments = get_vpn_connections()
-    for attachment in attachments:
-        logger.info('Setting propagation for attachment {}'.format(attachment.get('TransitGatewayAttachmentId')))
-        [create_vpn_propagation(attachment.get('TransitGatewayAttachmentId'), tgwrt) for tgwrt in tgws]
-
-
-    tgw_route_table_id = 'tgw-rtb-0ffaaa359d2b369f1'
-
+    # import boto3
+    # import requests
+    # tgws = []
+    # table_list = ec2_client.describe_transit_gateway_route_tables(Filters = [
+    #        {'Name':'tag:Propagate', 'Values':['EW']}
+    #       ])
+    # tables = table_list.get('TransitGatewayRouteTables')
+    # for table in tables:
+    #     tgws.append(table.get('TransitGatewayRouteTableId'))
+    # attachments = get_vpn_connections()
+    # for attachment in attachments:
+    #     logger.info('Setting propagation for attachment {}'.format(attachment.get('TransitGatewayAttachmentId')))
+    #     [create_vpn_propagation(attachment.get('TransitGatewayAttachmentId'), tgwrt) for tgwrt in tgws]
     #
     #
-    attachments = get_vpn_connections()
-    for attachment in attachments:
-        logger.info('Setting propagation for attachment {}'.format(attachment.get('TransitGatewayAttachmentId')))
-        [create_vpn_propagation(attachment.get('TransitGatewayAttachmentId'), tgwrt) for tgwrt in tgws]
+    # tgw_route_table_id = 'tgw-rtb-0ffaaa359d2b369f1'
+    #
+    # #
+    # #
+    # attachments = get_vpn_connections()
+    # for attachment in attachments:
+    #     logger.info('Setting propagation for attachment {}'.format(attachment.get('TransitGatewayAttachmentId')))
+    #     [create_vpn_propagation(attachment.get('TransitGatewayAttachmentId'), tgwrt) for tgwrt in tgws]
 
     cgws = get_cgws()
     [delete_cgw(cgw.get('CustomerGatewayId')) for cgw in cgws]

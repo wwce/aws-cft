@@ -472,38 +472,8 @@ def check_cgw(awsRegion, fwUntrustPubIP, n2Eip):
         return False
 
 
-def pa_group_configure_vpn(api_key, paGroup, vpnConfigBucket, N1VpnId, N2VpnId, ikeProfile="default",
-                           ipsecProfile="default", pa_dmz_inf="eth1", virtualRouter="default",
-                           zone="UNTRUST"):
-    """Function to configure VPN with a PAGroup and a VPC. Each node in the PAGroup will establish a VPN with the VPC.
-    """
-    # Configure VPN on Node1
-    vpnN1Conf = loadVpnConfigFromS3(vpnConfigBucket, N1VpnId)
-    peerGroup = "Active"  # Incase needed, this can come from PaGroupInfo eg: paGroup['PaN1Type'] = "Active"
-    N1VpnStatus = pa_configure_vpn(paGroup['N1Mgmt'], api_key, vpnN1Conf, peerGroup, ikeProfile, ipsecProfile,
-                                   pa_dmz_inf,
-                                   virtualRouter, zone)
-
-    # Configure VPN on Node2
-    vpnN2Conf = loadVpnConfigFromS3(vpnConfigBucket, N2VpnId)
-    peerGroup = "Passive"  # Incase needed, this can come from PaGroupInfo eg: paGroup['PaN1Type'] = "Active"
-    N2VpnStatus = pa_configure_vpn(paGroup['N2Mgmt'], api_key, vpnN2Conf, peerGroup, ikeProfile, ipsecProfile,
-                                   pa_dmz_inf,
-                                   virtualRouter, zone)
-
-    # Return False if something fails
-    if not N1VpnStatus or not N2VpnStatus:
-        pan_rollback(paGroup['N1Mgmt'], api_key)
-        pan_rollback(paGroup['N2Mgmt'], api_key)
-        return False
-    else:
-        pan_commit(paGroup['N1Mgmt'], api_key, message="VpnConfigured N1VpnId: {}".format(N1VpnId))
-        pan_commit(paGroup['N2Mgmt'], api_key, message="VpnConfigured N2VpnId: {}".format(N2VpnId))
-        return True
-
-
-def pa_configure_vpn(hostname, api_key, vpnConfDict, peerGroup, ikeProfile="default", ipsecProfile="default",
-                     pa_dmz_inf="ethernet1/1", virtualRouter="default", zone="UNTRUST"):
+def pa_configure_vpn(hostname, api_key, vpnConfDict, peerGroup, src_ip, ikeProfile="default", ipsecProfile="default",
+                     pa_dmz_inf="ethernet1/1", virtualRouter="default", zone="UNTRUST", ):
     """Function to configure IPSec vpn on a PA Node
     """
     try:
@@ -511,12 +481,12 @@ def pa_configure_vpn(hostname, api_key, vpnConfDict, peerGroup, ikeProfile="defa
         create_ike_gateway(hostname, api_key,
                            "-".join(["ike", vpnConfDict['id'], "0"]),
                            vpnConfDict['t1_ike_psk'], ikeProfile,
-                           pa_dmz_inf, vpnConfDict['t1_ike_peer'])
+                           pa_dmz_inf, vpnConfDict['t1_ike_peer'], src_ip)
         # Configure T2 IKE
         create_ike_gateway(hostname, api_key,
                            "-".join(["ike", vpnConfDict['id'], "1"]),
                            vpnConfDict['t2_ike_psk'], ikeProfile,
-                           pa_dmz_inf, vpnConfDict['t2_ike_peer'])
+                           pa_dmz_inf, vpnConfDict['t2_ike_peer'], src_ip)
         # Get ids to create tunnel Interface
         tunnelInfIds = get_free_tunnel_inf_ids(get_tunnel_units(hostname, api_key))
         # Configure T1 tunnelInf
@@ -847,7 +817,7 @@ def get_free_tunnel_inf_ids(tunnelNames, no_of_ids=2):
         return newIds
 
 
-def create_ike_gateway(hostname, api_key, name, psk, ikeProfile, pa_dmz_inf, peerIp):
+def create_ike_gateway(hostname, api_key, name, psk, ikeProfile, pa_dmz_inf, peerIp, src_ip):
     """Function to create IKE Gateway
     """
     xpath = "/config/devices/entry[@name='localhost.localdomain']/network/ike/gateway/entry[@name='{0}']".format(name)
@@ -861,7 +831,15 @@ def create_ike_gateway(hostname, api_key, name, psk, ikeProfile, pa_dmz_inf, pee
     # response from SecConfig is return so that incase needed, it can be used to do some processesing
     # In case of failure, Exception should be thrown by makeApiCall itself
 
-    return pan_set_config(hostname, api_key, xpath, element)
+    pan_set_config(hostname, api_key, xpath, element)
+
+    xpath2 = "/config/devices/entry[@name='localhost.localdomain']/network/ike/gateway/entry[@name='{0}']/local-address".format(
+        name)
+    element2 = "<ip>{0}</ip>".format(src_ip)
+
+    res = pan_set_config(hostname, api_key, xpath2, element2)
+    logger.info('Response setting source ip on ike gw {}'.format(res))
+    return
 
 
 def create_ipsec_tunnel_Inf(hostname, api_key, tunnelInfId, tunnelInfIp="ip/30", mtu=1427):
@@ -1218,6 +1196,7 @@ def get_tgw_vpn_attachmentid(resource_id):
             print('{}'.format(e))
     return attachment_id
 
+
 def get_tgw_vpn_attachment_data(resource_id):
     attachment_id = ''
     response = 0
@@ -1336,7 +1315,7 @@ def create_vpn(fwUntrustPubIP, gwMgmtPubIp, pa_asn, Region, cgw1Tag, table_name,
     logger.info('Reserving IP address in BGP table')
 
     peerGroup = 'tgw-out'
-    confVpnStatus = pa_configure_vpn(gwMgmtPubIp, api_key, vpnConfDict, peerGroup,
+    confVpnStatus = pa_configure_vpn(gwMgmtPubIp, api_key, vpnConfDict, peerGroup, src_ip,
                                      ikeProfile="default", ipsecProfile="default",
                                      pa_dmz_inf="ethernet1/1", virtualRouter="default", zone="Untrust")
 
@@ -1559,119 +1538,3 @@ def terminate(value):
     exit(0)
 
 
-def config_fw_lambda_handler(event, context):
-    """
-
-    :param event:
-        event = {
-            'lambda_bucket_name': lambda_bucket_name,
-            'event-name': 'gw-terminate/gw-launch',
-            'instance-id': ec2_instanceid,
-            'asg_name': asg_name,
-            'asg_hookname': lifecycle_hook_name
-        }
-    :param context:
-
-    Handles the configuration of the VPN connection between the firewall and AWS CGW.
-
-    :return:
-    """
-    logger.info('[INFO] Got event{}'.format(event))
-    context = ''
-    table_name = os.environ['table_name']
-    tgwId = os.environ['tgwId']
-    Region = os.environ['Region']
-    pa_asn = os.environ['N1Asn']
-
-    username = os.environ['username']
-    password = os.environ['password']
-
-    cgw1Tag = 'justin-tag'
-    tag = cgw1Tag
-
-    event_type = event.get('event-name')
-    if event_type == 'gw-terminate':
-        instanceId = event.get('instance-id')
-
-        if instanceId is None:
-            logger.info("[ERROR]: didn't get Instance Id")
-            return
-        logger.info("[INFO]: Got GW terminate event")
-
-        message = event.get('message')
-        if instanceId is None:
-            logger.info("[ERROR]: didn't get message")
-            return
-        logger.info("[INFO]: Got GW terminate event")
-
-        terminate_gw(event, table_name)
-
-        return
-
-    elif event_type == 'gw-launch':
-        gwMgmtPubIp = event.get('fwMgmtIP')
-        fwUntrustSubnet = event.get('fwUntrustSubnet')
-
-        if gwMgmtPubIp is None:
-            logger.info("[ERROR]: didn't get GW MGMT IP addresses")
-            # terminate('false')
-            return
-
-        fwUntrustPubIP = event.get('fwUntrustPubIP')
-        if fwUntrustPubIP is None:
-            logger.info("[ERROR]: didn't get GW DP Public IP addresses")
-            # terminate('false')
-            return
-
-        fwUntrustPrivIP = event.get('fwUntrustPrivIP')
-        if fwUntrustPrivIP is None:
-            logger.info("[ERROR]: didn't get FW DP Private IP addresses")
-            # terminate('false')
-            return
-
-        instanceId = event.get('instance-id')
-        if instanceId is None:
-            logger.info("[ERROR]: didn't get Instance Id")
-            # raise Exception('Failed to get ASG name in : ', inspect.stack()[1][3])
-            # terminate('false')
-            return
-
-        lambda_bucket_name = event.get('lambda_bucket_name')
-        if lambda_bucket_name is None:
-            logger.info("[ERROR]: didn't get lambda bucket name")
-            # terminate('false')
-            return
-
-        bucketName = lambda_bucket_name
-        logger.info("[INFO]: Got gw launch event")
-        config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_asn, Region, cgw1Tag, table_name,
-                  tgwId, username, password, bucketName, tag, instanceId)
-        return
-    else:
-        logger.info("[ERROR]: What event is this?")
-        # terminate('false')
-        return
-
-
-if __name__ == '__main__':
-    # event = {
-    #     "fwMgmtIP": "99.80.157.206",
-    #     "lambda_bucket_name": "jrh-tgw-boot",
-    #     "event-name": "gw-launch",
-    #     "fwUntrustPubIP": "108.129.5.189",
-    #     "fwUntrustPrivIP": "10.0.2.136",
-    #     "instance-id": "i-0b5789708de089d0a",
-    #     "asg_name": "justin-ASGDemo-18MUM82XB0T7C",
-    #     "asg_hookname": "justin-ASGLifecycleHookL-1UE27I8Y80VKR",
-    #     "fwUntrustSubnet": "subnet-0da026d338af9d959"
-    # }
-    event = {
-        "lambda_bucket_name": "us-east-1-autoscale",
-        "event-name": "gw-terminate",
-        "instance-id": "i-0778420feacdb7dee",
-        "asg_name": "satstack1ASG",
-        "asg_hookname": "satstack1ASG-life-cycle-terminate"
-    }
-
-    context = ''
-    config_fw_lambda_handler(event, context)

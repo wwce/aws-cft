@@ -1,93 +1,116 @@
 {
   "Comment": "FW-VPN state function.",
-  "StartAt": "FirstState",
+  "StartAt": "create_aws_vpn",
   "States": {
-    "FirstState": {
+    "create_aws_vpn": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:FUNCTION_NAME",
-      "Next": "aws_vpn_configured"
+      "Resource": "${ConfigAwsVpn}",
+      "Next": "aws_vpn_configured",
+      "TimeoutSeconds": 230,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "FailState"
+        }
+      ]
     },
     "aws_vpn_configured": {
-      "Type" : "Choice",
+      "Type": "Choice",
       "Choices": [
         {
           "Variable": "$.Action",
-          "StringEquals": "config_fw",
+          "StringEquals": "config_aws_success",
           "Next": "config_fw"
         },
         {
-          "Variable": "$.action",
-          "StringEquals": "failed",
+          "Variable": "$.Action",
+          "StringEquals": "config_aws_failed",
           "Next": "delete_aws_vpn"
         }
-      ],
-      "Default": "DefaultState"
+      ]
     },
     "config_fw": {
       "Type" : "Task",
-      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnFirstMatch",
-      "Next": "fw_configured"
+      "Resource": "${ConfigFw}",
+      "Next": "fw_configured",
+      "TimeoutSeconds": 590,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "delete_aws_vpn"
+        }
+      ]
+
     },
     "fw_configured": {
-      "Type" : "Choice",
+      "Type": "Choice",
       "Choices": [
         {
           "Variable": "$.Action",
-          "StringEquals": "config_fw_complete",
+          "StringEquals": "config_fw_success",
           "Next": "create_panw_vpn"
         },
         {
-          "Variable": "$.action",
-          "StringEquals": "failed",
+          "Variable": "$.Action",
+          "StringEquals": "config_fw_failed",
           "Next": "delete_aws_vpn"
         }
-      ],
-      "Default": "DefaultState"
+      ]
     },
-
     "create_panw_vpn": {
         "Type" : "Task",
-        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnFirstMatch",
-        "Next": "panw_vpn_configured"
-      },
-      "panw_vpn_configured": {
-        "Type" : "Choice",
-        "Choices": [
-          {
-            "Variable": "$.Action",
-            "StringEquals": "fw_vpn_complete",
-            "Next": "create_panw_vpn"
-          },
-          {
-            "Variable": "$.action",
-            "StringEquals": "failed",
-            "Next": "delete_fw_vpn"
-          }
-        ],
-        "Default": "DefaultState"
-      },
+      "Resource": "${ConfigPanwVpn}",
+      "Next": "panw_vpn_configured",
+      "TimeoutSeconds": 590,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "delete_fw_vpn"
+        }
+      ]
 
+      },
+    "panw_vpn_configured": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Action",
+          "StringEquals": "config_fw_vpn_success",
+          "Next": "modify_bgp"
+        },
+        {
+          "Variable": "$.Action",
+          "StringEquals": "config_fw_vpn_failed",
+          "Next": "delete_fw_vpn"
+        }
+      ]
+    },
     "delete_fw_vpn": {
       "Type" : "Task",
-      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnSecondMatch",
+      "Resource": "${DeleteFwVpn}",
       "Next": "delete_aws_vpn"
     },
     "delete_aws_vpn": {
         "Type" : "Task",
-        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:OnSecondMatch",
-        "Next": "delete_aws_vpn"
+      "Resource": "${DeleteAwsVpn}",
+      "Next": "FailState"
     },
-
-    "DefaultState": {
-      "Type": "Fail",
-      "Error": "DefaultStateError",
-      "Cause": "No Matches!"
-    },
-
-    "EndState": {
+    "modify_bgp": {
       "Type": "Task",
-      "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:FUNCTION_NAME",
+      "Resource": "${UpdateRoutes}"
       "End": true
+    },
+    "FailState": {
+      "Type": "Fail",
+      "Cause": "Failed to create VPN",
+      "Error": "Creation Error"
     }
   }
+
 }
