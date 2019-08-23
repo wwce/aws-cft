@@ -5,7 +5,7 @@
         "VpcSummaryRoute": {
             "Type": "String",
             "Description": "Summary route for spoke vpcs for example 10.0.0.0/8",
-            "Default": "10.0.0.0/16"
+          "Default": "10.0.0.0/12"
         },
         "KeyName": {
             "Description": "AWS EC2 Intance ssh key",
@@ -57,6 +57,14 @@
             ],
             "Description": "Enter the instance type and size for the VM-Series firewall"
         },
+      "HighCapacityVM": {
+        "Type": "String",
+        "Default": "No",
+        "AllowdValues": [
+          "Yes",
+          "No"
+        ]
+      },
         "FWLicenseType": {
             "Type": "String",
             "Default": "Bundle1",
@@ -3169,7 +3177,7 @@
             "Properties": {
                 "DefinitionString": {
                     "Fn::Sub": [
-                        "{\n\"Comment\": \"FW-VPN state function.\",\n\"StartAt\": \"create_aws_vpn\",\n\"States\": {\n  \"create_aws_vpn\": {\n    \"Type\": \"Task\",\n    \"Resource\": \"${ConfigAwsVpnArn}\",\n    \"Next\": \"aws_vpn_configured\"\n  },\n  \"aws_vpn_configured\": {\n    \"Type\" : \"Choice\",\n    \"Choices\": [\n      {\n      \"Variable\": \"$.Action\",\n      \"StringEquals\": \"config_aws_success\",\n      \"Next\": \"config_fw\"\n      },\n      {\n        \"Variable\": \"$.Action\",\n        \"StringEquals\": \"config_aws_failed\",\n        \"Next\": \"delete_aws_vpn\"\n      }\n    ]\n    },\n    \"config_fw\": {\n      \"Type\" : \"Task\",\n      \"Resource\": \"${ConfigFwArn}\",\n      \"Next\": \"fw_configured\"\n    },\n    \"fw_configured\": {\n    \"Type\" : \"Choice\",\n    \"Choices\": [\n        {\n        \"Variable\": \"$.Action\",\n        \"StringEquals\": \"config_fw_success\",\n        \"Next\": \"create_panw_vpn\"\n        },\n        {\n          \"Variable\": \"$.Action\",\n          \"StringEquals\": \"config_fw_failed\",\n          \"Next\": \"delete_aws_vpn\"\n        }\n        ]\n    },\n    \"create_panw_vpn\": {\n        \"Type\" : \"Task\",\n        \"Resource\": \"${ConfigPanwVpnArn}\",\n        \"Next\": \"panw_vpn_configured\"\n      },\n    \"panw_vpn_configured\": {\n      \"Type\" : \"Choice\",\n      \"Choices\": [\n        {\n          \"Variable\": \"$.Action\",\n          \"StringEquals\": \"config_fw_vpn_success\",\n          \"Next\": \"modify_bgp\"\n        },\n        {\n          \"Variable\": \"$.Action\",\n          \"StringEquals\": \"config_fw_vpn_failed\",\n          \"Next\": \"delete_fw_vpn\"\n        }\n      ]\n    },\n    \"delete_fw_vpn\": {\n      \"Type\" : \"Task\",\n      \"Resource\": \"${DeleteFwVpnArn}\",\n      \"Next\": \"delete_aws_vpn\"\n    },\n    \"delete_aws_vpn\": {\n        \"Type\" : \"Task\",\n        \"Resource\": \"${DeleteAwsVpnArn}\",\n        \"End\": true\n    },\n    \"modify_bgp\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${UpdateRoutesArn}\",\n      \"End\": true\n    }\n  }\n}",
+                      "{\n\"Comment\": \"FW-VPN state function.\",\n\"StartAt\": \"create_aws_vpn\",\n\"States\": {\n  \"create_aws_vpn\": {\n    \"Type\": \"Task\",\n    \"Resource\": \"arn:aws:lambda:eu-west-1:106808901653:function:ref-arch-ConfigAwsVpn-JGZBH9QJ4SBA\",\n    \"Next\": \"aws_vpn_configured\",\n    \"TimeoutSeconds\": 230,\n        \"Catch\": [ {\n            \"ErrorEquals\": [\"States.Timeout\"],\n            \"Next\": \"FailState\"\n         } ]\n    \n  },\n  \"aws_vpn_configured\": {\n    \"Type\" : \"Choice\",\n    \"Choices\": [\n      {\n      \"Variable\": \"$.Action\",\n      \"StringEquals\": \"config_aws_success\",\n      \"Next\": \"config_fw\"\n      },\n      {\n        \"Variable\": \"$.Action\",\n        \"StringEquals\": \"config_aws_failed\",\n        \"Next\": \"delete_aws_vpn\"\n      }\n    ]\n    },\n    \"config_fw\": {\n      \"Type\" : \"Task\",\n      \"Resource\": \"arn:aws:lambda:eu-west-1:106808901653:function:ref-arch-ConfigFw-V6OD3B8UF2QE\",\n      \"Next\": \"fw_configured\",\n      \"TimeoutSeconds\": 590,\n        \"Catch\": [ {\n            \"ErrorEquals\": [\"States.Timeout\"],\n            \"Next\": \"delete_aws_vpn\"\n         } ]\n      \n    },\n    \"fw_configured\": {\n    \"Type\" : \"Choice\",\n    \"Choices\": [\n        {\n        \"Variable\": \"$.Action\",\n        \"StringEquals\": \"config_fw_success\",\n        \"Next\": \"create_panw_vpn\"\n        },\n        {\n          \"Variable\": \"$.Action\",\n          \"StringEquals\": \"config_fw_failed\",\n          \"Next\": \"delete_aws_vpn\"\n        }\n        ]\n    },\n    \"create_panw_vpn\": {\n        \"Type\" : \"Task\",\n        \"Resource\": \"arn:aws:lambda:eu-west-1:106808901653:function:ref-arch-ConfigPanwVpn-18KKBX3QM34EF\",\n        \"Next\": \"panw_vpn_configured\",\n        \"TimeoutSeconds\": 590,\n        \"Catch\": [ {\n            \"ErrorEquals\": [\"States.Timeout\"],\n            \"Next\": \"delete_fw_vpn\"\n         } ]\n      \n      },\n    \"panw_vpn_configured\": {\n      \"Type\" : \"Choice\",\n      \"Choices\": [\n        {\n          \"Variable\": \"$.Action\",\n          \"StringEquals\": \"config_fw_vpn_success\",\n          \"Next\": \"modify_bgp\"\n        },\n        {\n          \"Variable\": \"$.Action\",\n          \"StringEquals\": \"config_fw_vpn_failed\",\n          \"Next\": \"delete_fw_vpn\"\n        }\n      ]\n    },\n    \"delete_fw_vpn\": {\n      \"Type\" : \"Task\",\n      \"Resource\": \"arn:aws:lambda:eu-west-1:106808901653:function:ref-arch-DeleteFwVpn-18NLEA5IAI09V\",\n      \"Next\": \"delete_aws_vpn\"\n    },\n    \"delete_aws_vpn\": {\n        \"Type\" : \"Task\",\n        \"Resource\": \"arn:aws:lambda:eu-west-1:106808901653:function:ref-arch-DeleteAwsVpn-KLMUSYQWZNUZ\",\n        \"Next\": \"FailState\"\n    },\n    \"modify_bgp\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"arn:aws:lambda:eu-west-1:106808901653:function:ref-arch-UpdateRoutes-BKCUGEZGKA78\",\n      \"End\": true\n    },\n   \"FailState\": {\n  \"Type\": \"Fail\",\n  \"Cause\": \"Failed to create VPN\",\n  \"Error\": \"Creation Error\"\n}\n  }\n\n}",
                         {
                             "UpdateRoutesArn": {
                                 "Fn::GetAtt": [
@@ -3702,7 +3710,7 @@
                     ]
                 },
                 "Runtime": "python3.6",
-                "Timeout": 600
+              "Timeout": 240
             },
             "DependsOn": [
                 "FW1Instance",
