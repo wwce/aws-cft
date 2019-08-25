@@ -31,6 +31,7 @@ import os
 import boto3
 import sys
 from boto3.dynamodb.conditions import Attr
+import time
 
 from botocore.exceptions import ClientError
 
@@ -306,18 +307,22 @@ def lambda_handler(event, context):
     data = {}
     fw1_vpnId, fw1_cgwId = create_tgw_vpn(fw1_untrust_pub_ip, pa_asn, Region, cgw1Tag, table_name, tgwId,
                                           lambda_bucket_name, tag1, fw1instanceId)
-
+    # Delay creation to allow Dynamodb updates and VPN to stabilise
     logger.info('created fw1 vpn with vpnId {}'.format(fw1_vpnId))
+    time.sleep(20)
 
     fw1_sec_vpnId, fw1_sec_cgwId = create_tgw_vpn(fw1_untrust_sec_pub_ip, pa_asn, Region, cgw1Tag, table_name, tgwId,
                                                   lambda_bucket_name, tag1, fw1instanceId)
-
+    # Delay creation to allow Dynamodb updates and VPN to stabilise
     logger.info('created fw1 secondary vpn with vpnId {}'.format(fw1_vpnId))
+    # Wait for VPNs to stabilise os the we do not exceed a 'mutating limit'
+    time.sleep(20)
 
     fw2_vpnId, fw2_cgwId = create_tgw_vpn(fw2_untrust_pub_ip, pa_asn, Region, cgw2Tag, table_name, tgwId,
                                           lambda_bucket_name, tag2, fw2instanceId)
-
     logger.info('created fw2 vpn with vpnId {}'.format(fw2_vpnId))
+    # Delay creation to allow Dynamodb updates and VPN to stabilise
+    time.sleep(20)
 
     fw2_sec_vpnId, fw2_sec_cgwId = create_tgw_vpn(fw2_untrust_sec_pub_ip, pa_asn, Region, cgw2Tag, table_name, tgwId,
                                                   lambda_bucket_name, tag2, fw2instanceId)

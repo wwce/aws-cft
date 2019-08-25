@@ -1,4 +1,3 @@
-<?xml version="1.0"?>
 <config version="8.1.0" urldb="paloaltonetworks">
   <mgt-config>
     <users>
@@ -10102,10 +10101,11 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                 <lldp>
                   <enable>no</enable>
                 </lldp>
-                  <ip>
-                      <entry name="fw_untrust_int"/>
-                      <entry name="fw_untrust_sec_int"/>
-                  </ip>
+                <ip>
+                  <entry name="fw_untrust_int"/>
+                  <entry name="fw_untrust_sec_int"/>
+                </ip>
+                <interface-management-profile>mgt</interface-management-profile>
               </layer3>
             </entry>
             <entry name="ethernet1/2">
@@ -10131,7 +10131,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
             </entry>
           </ethernet>
           <tunnel>
-              <units/>
+            <units/>
           </tunnel>
         </interface>
         <profiles>
@@ -10253,7 +10253,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
               </entry>
             </global-protect-app-crypto-profiles>
           </crypto-profiles>
-            <gateway/>
+          <gateway/>
         </ike>
         <qos>
           <profile>
@@ -10307,7 +10307,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <enable>yes</enable>
                   </graceful-restart>
                 </routing-options>
-                  <router-id>63.33.251.17</router-id>
+                <router-id>52.212.173.131</router-id>
                 <local-as>65003</local-as>
                 <redist-rules>
                   <entry name="default">
@@ -10407,13 +10407,16 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
               <algorithm>
                 <ip-modulo/>
               </algorithm>
+              <enable>yes</enable>
+              <symmetric-return>no</symmetric-return>
+              <max-path>4</max-path>
             </ecmp>
             <routing-table>
               <ip>
                 <static-route>
                   <entry name="vnet-local">
                     <nexthop>
-                        <ip-address>10.253.130.1</ip-address>
+                      <ip-address>10.253.130.1</ip-address>
                     </nexthop>
                     <bfd>
                       <profile>None</profile>
@@ -10444,37 +10447,37 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     </path-monitor>
                     <metric>10</metric>
                     <destination>10.0.0.0/12</destination>
-                      <route-table>
-                          <unicast/>
-                      </route-table>
+                    <route-table>
+                      <unicast/>
+                    </route-table>
                   </entry>
-                    <entry name="default">
-                        <nexthop>
-                            <ip-address>10.253.100.1</ip-address>
-                        </nexthop>
-                        <bfd>
-                            <profile>None</profile>
-                        </bfd>
-                        <path-monitor>
-                            <enable>no</enable>
-                            <failure-condition>any</failure-condition>
-                            <hold-time>2</hold-time>
-                        </path-monitor>
-                        <interface>ethernet1/1</interface>
-                        <metric>10</metric>
-                        <destination>0.0.0.0/0</destination>
-                        <route-table>
-                            <unicast/>
-                        </route-table>
-                    </entry>
+                  <entry name="default">
+                    <nexthop>
+                      <ip-address>10.253.100.1</ip-address>
+                    </nexthop>
+                    <bfd>
+                      <profile>None</profile>
+                    </bfd>
+                    <path-monitor>
+                      <enable>no</enable>
+                      <failure-condition>any</failure-condition>
+                      <hold-time>2</hold-time>
+                    </path-monitor>
+                    <interface>ethernet1/1</interface>
+                    <metric>10</metric>
+                    <destination>0.0.0.0/0</destination>
+                    <route-table>
+                      <unicast/>
+                    </route-table>
+                  </entry>
                 </static-route>
               </ip>
             </routing-table>
           </entry>
         </virtual-router>
-          <tunnel>
-              <ipsec/>
-          </tunnel>
+        <tunnel>
+          <ipsec/>
+        </tunnel>
       </network>
       <deviceconfig>
         <system>
@@ -10646,7 +10649,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <member>any</member>
                   </source>
                   <destination>
-                      <member>fw_untrust_pub_ip</member>
+                    <member>fw_untrust_pub_ip</member>
                   </destination>
                   <source-user>
                     <member>any</member>
@@ -10715,7 +10718,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <member>any</member>
                   </source>
                   <destination>
-                      <member>fw_untrust_pub_ip</member>
+                    <member>fw_untrust_pub_ip</member>
                   </destination>
                   <service>tcp-8080</service>
                   <to-interface>ethernet1/1</to-interface>
@@ -10742,7 +10745,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                     <member>any</member>
                   </source>
                   <destination>
-                      <member>fw_untrust_pub_ip</member>
+                    <member>fw_untrust_pub_ip</member>
                   </destination>
                   <service>tcp-2422</service>
                   <to-interface>ethernet1/1</to-interface>
@@ -10768,25 +10771,25 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
             <entry name="s3-file">
               <fqdn>www.google1.com</fqdn>
             </entry>
-              <entry name="fw_untrust_int">
-                  <ip-netmask>10.253.100.241/24</ip-netmask>
-              </entry>
-              <entry name="fw_trust_int">
-                  <ip-netmask>10.253.130.96</ip-netmask>
-              </entry>
-              <entry name="fw1_untrust_sec_pub_ip">
-                  <ip-netmask>10.253.100.186</ip-netmask>
-              </entry>
-              <entry name="fw_untrust_pub_ip">
-                  <ip-netmask>10.253.100.241</ip-netmask>
-              </entry>
-              <entry name="fw_untrust_sec_int">
-                  <ip-netmask>10.253.100.186/32</ip-netmask>
-              </entry>
+            <entry name="fw_untrust_int">
+              <ip-netmask>10.253.100.183/24</ip-netmask>
+            </entry>
+            <entry name="fw_trust_int">
+              <ip-netmask>10.253.130.234</ip-netmask>
+            </entry>
+            <entry name="fw1_untrust_sec_pub_ip">
+              <ip-netmask>10.253.100.186</ip-netmask>
+            </entry>
+            <entry name="fw_untrust_pub_ip">
+              <ip-netmask>10.253.100.241</ip-netmask>
+            </entry>
+            <entry name="fw_untrust_sec_int">
+              <ip-netmask>10.253.100.23/32</ip-netmask>
+            </entry>
           </address>
-            <profiles>
-                <custom-url-category/>
-            </profiles>
+          <profiles>
+            <custom-url-category/>
+          </profiles>
         </entry>
       </vsys>
     </entry>

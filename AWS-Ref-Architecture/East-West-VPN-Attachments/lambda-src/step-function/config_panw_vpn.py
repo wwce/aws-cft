@@ -353,7 +353,6 @@ def lambda_handler(event, context):
     logger.info('called create_panw_vpn {}\n{}\n{}'.format(fw2_mgmt_ip, lambda_bucket_name, fw2_sec_vpnId,
                                                            'fw_untrust_sec_int'))
     fw2_sec_vpn_status = create_panw_vpn(fw2_mgmt_ip, api_key, lambda_bucket_name, fw2_sec_vpnId, 'fw_untrust_sec_int')
-    # time.sleep(300)
 
     if fw1_vpn_status and fw2_vpn_status:
         event.update({'Action':'config_fw_vpn_success'})

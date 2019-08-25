@@ -434,7 +434,7 @@ def lambda_handler(event, context):
         }
     else:
         data = {
-            'Action': 'config_aws_failed',
+            'Action': 'config_fw_failed',
             'fw1_vpnId': fw1_vpnId,
             'fw1_cgwId': fw1_cgwId,
             'fw2_vpnId': fw2_vpnId,

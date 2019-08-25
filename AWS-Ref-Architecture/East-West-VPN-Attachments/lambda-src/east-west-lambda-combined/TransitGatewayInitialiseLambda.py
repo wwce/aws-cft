@@ -72,23 +72,18 @@ def delete_route(route_table_id, destination_cidr_block):
 
 def start_state_function(state_machine_arn, high_capacity_vm):
     sfnConnection = boto3.client('stepfunctions')
-    if high_capacity_vm == 'Yes':
-        count = 2
-    else:
-        count = 1
     success_count = len(
         sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='SUCCEEDED')['executions'])
     running_count = len(
         sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='RUNNING')['executions'])
 
-    logger.info('Sstate machine running count is {} and success count is {}'.format(running_count, success_count))
+    logger.info('State machine running count is {} and success count is {}'.format(running_count, success_count))
     step_function_arns = []
-    for i in range(count):
-        result = sfnConnection.start_execution(stateMachineArn=state_machine_arn)
-        logger.info('State maching ARN is {}'.format(result.get('executionArn')))
-        step_function_arns.append(result.get('executionArn'))
-        logger.info("Started StateMachine")
-        time.sleep(30)
+    time.sleep(30)
+    result = sfnConnection.start_execution(stateMachineArn=state_machine_arn)
+    logger.info('State maching ARN is {}'.format(result.get('executionArn')))
+    step_function_arns.append(result.get('executionArn'))
+    logger.info("Started StateMachine")
     time.sleep(30)
     success_count = len(
         sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='SUCCEEDED')['executions'])
@@ -97,13 +92,12 @@ def start_state_function(state_machine_arn, high_capacity_vm):
     failed_count = len(
         sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='FAILED')['executions'])
 
-    logger.info('Sstate machine running count is {}, failed count is {} and success count is {}'.format(running_count,
-                                                                                                        failed_count,
-                                                                                                        success_count))
-    if (success_count + running_count) != count and failed_count > 0:
-        logger.info('An iteration has failed will try again')
-        result = sfnConnection.start_execution(stateMachineArn=state_machine_arn)
-        logger.info('State maching ARN is {}'.format(result.get('executionArn')))
+    logger.info('State machine running count is {}, failed count is {} and success count is {}'
+                .format(running_count, failed_count, success_count))
+    if running_count == 0 and failed_count > 0:
+        logger.info('Problems starting the step function')
+
+
 
 
 def get_vpn_connections():
