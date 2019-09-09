@@ -42,14 +42,6 @@ from boto3.dynamodb.conditions import Attr
 import netaddr
 
 Region = os.environ['Region']
-api_key = os.environ['apikey']
-TransitGatewayRouteTableId = os.environ['tgwRouteId']
-tgwId = os.environ['tgwId']
-table_name = os.environ['table_name']
-Region = os.environ['Region']
-pa_asn = os.environ['N1Asn']
-username = os.environ['username']
-password = os.environ['password']
 
 urllib3.disable_warnings()
 
@@ -578,7 +570,8 @@ def getFirewallStatus(fwIP, api_key):
         Firewall may return 5xx error when rebooting.  Need to handle a 5xx response
         raise_for_status() throws HTTPError for error responses
         '''
-        logger.infor("Http Error: {}: ".format(fwstartgerr))
+        logger.info("Http Error: {}: ".format(fwstartgerr))
+        time.sleep(10)
         return 'cmd_error'
     except requests.exceptions.RequestException as err:
         logger.debug("Got RequestException response from FW. So maybe not up!")
@@ -1218,7 +1211,7 @@ def create_vpn_propagation(attachment_id, tgw_route_table_id):
 
 ## START LAUNCH CODE
 def config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_asn, Region, cgw1Tag, table_name, tgwId,
-              username, password, bucketName, tag, instanceId):
+              apikey, bucketName, tag, instanceId):
     """
 
     :param fwUntrustPubIP:
@@ -1238,8 +1231,9 @@ def config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_
     :return:
     Main function that will configure the firewall and VPN connections.
     """
-
+    TransitGatewayRouteTableId = os.environ['tgwRouteId']
     # api_key = getApiKey(gwMgmtPubIp, username, password)
+    api_key = os.environ['apikey']
 
     while True:
         err = getFirewallStatus(gwMgmtPubIp, api_key)
@@ -1552,6 +1546,14 @@ def config_fw_lambda_handler(event, context):
     """
     logger.info('[INFO] Got event{}'.format(event))
     context = ''
+    table_name = os.environ['table_name']
+    tgwId = os.environ['tgwId']
+    Region = os.environ['Region']
+    pa_asn = os.environ['N1Asn']
+    apikey = os.environ['apikey']
+
+    # username = os.environ['username']
+    # password = os.environ['password']
 
     cgw1Tag = 'justin-tag'
     tag = cgw1Tag
@@ -1612,7 +1614,7 @@ def config_fw_lambda_handler(event, context):
         bucketName = lambda_bucket_name
         logger.info("[INFO]: Got gw launch event")
         config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_asn, Region, cgw1Tag, table_name,
-                  tgwId, username, password, bucketName, tag, instanceId)
+                  tgwId, apikey, bucketName, tag, instanceId)
         return
     else:
         logger.info("[ERROR]: What event is this?")

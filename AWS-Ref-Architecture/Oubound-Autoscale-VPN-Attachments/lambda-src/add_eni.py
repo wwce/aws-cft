@@ -37,6 +37,7 @@ import xml
 import xml.etree.ElementTree as ET
 from botocore.exceptions import ClientError
 
+
 Namespace = ""
 asg_name = ""
 
@@ -59,10 +60,8 @@ valid_panfw_productcode_byol = {
 
 urllib3.disable_warnings()
 
-
 class FWNotUpException(Exception):
     pass
-
 
 def remove_eni_in_subnet(subnet):
     """
@@ -233,7 +232,6 @@ def get_ssl_context():
     ctx.options = ssl.PROTOCOL_TLSv1_2
     return ctx
 
-
 def get_device_serial_no(instanceId, gwMgmtIp, fwApiKey):
     """
     Retrieve the serial number from the FW.
@@ -253,7 +251,7 @@ def get_device_serial_no(instanceId, gwMgmtIp, fwApiKey):
         return None
 
     logger.info('Retrieve the serial number from FW {} with IP: {}'.format(instanceId, gwMgmtIp))
-    fw_cmd = '<show><system><info/></system></show>'
+    fw_cmd='<show><system><info/></system></show>'
     try:
         response = pan_op_cmd(gwMgmtIp, fwApiKey, fw_cmd)
         # response = runCommand(gcontext, fw_cmd, gwMgmtIp, fwApiKey)
@@ -274,7 +272,6 @@ def get_device_serial_no(instanceId, gwMgmtIp, fwApiKey):
 
     return serial_no
 
-
 def make_api_call(hostname, data):
     """Function to make API call
     """
@@ -289,7 +286,6 @@ def make_api_call(hostname, data):
     encoded_data = urllib.parse.urlencode(data).encode('utf-8')
     return urllib.request.urlopen(url, data=encoded_data, context=ctx).read()
 
-
 def pan_op_cmd(hostname, api_key, cmd):
     """Function to make an 'op' call to execute a command
     """
@@ -299,6 +295,7 @@ def pan_op_cmd(hostname, api_key, cmd):
         "cmd": cmd
     }
     return make_api_call(hostname, data)
+
 
 
 def deactivate_fw_license(instanceId, gwMgmtIp, fwApiKey):
@@ -334,7 +331,6 @@ def deactivate_fw_license(instanceId, gwMgmtIp, fwApiKey):
         return False
 
     return True
-
 
 def send_request(call):
     """
@@ -445,6 +441,7 @@ def handle_license(instanceId, fwMgmtIp, fwApiKey):
     return True
 
 
+
 def check_belongsto_az(list_subnet, az):
     """
     :param list_subnet
@@ -459,7 +456,7 @@ def check_belongsto_az(list_subnet, az):
             subnetaz = r['AvailabilityZone']
             if subnetaz == az:
                 chosensubnet = r['SubnetId']
-                logger.info("Found the required subnet for this instance :" + chosensubnet)
+                logger.info ("Found the required subnet for this instance :" +chosensubnet)
                 return chosensubnet
     return None
 
@@ -718,8 +715,9 @@ def add_eni_lambda_handler(event, context):
     global debug
 
     debug = "Yes"
-    username = os.environ['username']
-    password = os.environ['password']
+    # username = os.environ['username']
+    # password = os.environ['password']
+    apikey = os.environ['apikey']
     stackname = os.environ['StackName']
     region = os.environ['Region']
     lambda_bucket_name = os.environ['lambda_bucket_name']
@@ -778,11 +776,13 @@ def add_eni_lambda_handler(event, context):
     else:
         logger.setLevel(logging.WARNING)
 
+
     if event_type == 'terminate':
         logger.info('PANW EC2 Firewall Instance is terminating')
         fw_mgmt_ip = retrieve_fw_ip(ec2_instanceid, 1)
         logger.info('Generating apikey at {}'.format(fw_mgmt_ip))
-        fwApiKey = getApiKey(fw_mgmt_ip, username, password)
+        # fwApiKey = getApiKey(fw_mgmt_ip, username, password)
+        fwApiKey = apikey
         handle_license(ec2_instanceid, fw_mgmt_ip, fwApiKey)
 
         remove_secondary_eni(message)

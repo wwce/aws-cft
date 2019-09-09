@@ -502,7 +502,7 @@ Resources:
           tgw_rt_tag: !Ref 'TransitGatewayRouteTablePropagationTag'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
-        S3Key: add_eni_v1_1.zip
+        S3Key: add_eni.zip
       Runtime: python3.6
       Timeout: 300
       VpcConfig:
@@ -536,7 +536,7 @@ Resources:
           tgw_rt_tag: !Ref 'TransitGatewayRouteTablePropagationTag'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
-        S3Key: config-fw_v1_1.zip
+        S3Key: config-fw.zip
       Runtime: python3.6
       Timeout: 800
       VpcConfig:
