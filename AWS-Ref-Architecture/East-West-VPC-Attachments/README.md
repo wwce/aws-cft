@@ -1,12 +1,5 @@
-# AWS Transit Gateway Version 2
+# AWS Transit VPC Attachment
 
-Adds the ability to deploy Firewalls into an Autoscale group for securing connections to the internet
-
-Changes to direct attach template include
-1) Clean up of parameters section - Removed subnet cidr definition (Can be changed in the mapping section)
-2) Combined the lambda functions into a single zip file and added lamda layers so that lambda functions are visible in the function editor.
-
-![alt_text](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/images/TGW-Direct-Attach.png)
 
 The firewall management interface can be reached via the NAT instance
 
