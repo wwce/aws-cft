@@ -22,9 +22,6 @@ Parameters:
   TransitGatewayRouteTableId:
     Description: The transit gateway route table that the vpn will attach to
     Type: String
-  TransitGatewayRouteTablePropagationTag:
-    Description: Tag  key = Propagation value = NS
-    Type: String
   apikey:
     Description: Api key for firewall management
     Type: String
@@ -499,7 +496,7 @@ Resources:
           StackName: !Ref 'AWS::StackName'
           Region: !Ref 'AWS::Region'
           apikey: !Ref 'apikey'
-          tgw_rt_tag: !Ref 'TransitGatewayRouteTablePropagationTag'
+
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
         S3Key: add_eni.zip
@@ -533,7 +530,6 @@ Resources:
           apikey: !Ref 'apikey'
           license_api_key: !Ref 'FWLicenseApiKey'
           tgwRouteId: !Ref 'TransitGatewayRouteTableId'
-          tgw_rt_tag: !Ref 'TransitGatewayRouteTablePropagationTag'
       Code:
         S3Bucket: !Ref 'LambdaBucketName'
         S3Key: config-fw.zip
