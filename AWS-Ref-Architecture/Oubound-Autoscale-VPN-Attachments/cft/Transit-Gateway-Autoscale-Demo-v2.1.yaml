@@ -575,6 +575,7 @@ Resources:
       Environment:
         Variables:
           Region: !Ref 'AWS::Region'
+      Code:
           S3Bucket: !Ref 'LambdaBucketName'
           S3Key: create_asg.zip
       Runtime: python3.6
