@@ -720,6 +720,7 @@ def add_eni_lambda_handler(event, context):
     apikey = os.environ['apikey']
     stackname = os.environ['StackName']
     region = os.environ['Region']
+
     lambda_bucket_name = os.environ['lambda_bucket_name']
     config_gw_func = os.environ['config_fw_arn']
 

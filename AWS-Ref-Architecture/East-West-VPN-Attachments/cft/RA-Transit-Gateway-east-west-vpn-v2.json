@@ -57,15 +57,6 @@
       ],
       "Description": "Enter the instance type and size for the VM-Series firewall"
     },
-    "HighCapacityVM": {
-      "Type": "String",
-      "Default": "No",
-      "AllowedValues": [
-        "Yes",
-        "No"
-      ],
-      "Description": "Enter yes if this is a VM300 or Greater (Adds VPN Tunnels)"
-    },
     "FWLicenseType": {
       "Type": "String",
       "Default": "Bundle1",
@@ -4201,9 +4192,6 @@
                 "VpcCidrBlock",
                 "CidrBlock"
               ]
-            },
-            "HighCapacityVM": {
-              "Ref": "HighCapacityVM"
             }
           }
         },

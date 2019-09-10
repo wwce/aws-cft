@@ -70,7 +70,7 @@ def delete_route(route_table_id, destination_cidr_block):
     return resp
 
 
-def start_state_function(state_machine_arn, high_capacity_vm):
+def start_state_function(state_machine_arn):
     sfnConnection = boto3.client('stepfunctions')
     success_count = len(
         sfnConnection.list_executions(stateMachineArn=state_machine_arn, statusFilter='SUCCEEDED')['executions'])
@@ -141,7 +141,6 @@ def lambda_handler(event, context):
     transit_gateway_id = os.environ['transitGatewayid']
     init_fw_state_machine_arn = os.environ['InitFWStateMachine']
     vnetroutecidr = os.environ['VpcCidrBlock']
-    high_capacity_vm = os.environ['HighCapacityVM']
     vpc_summary_route = os.environ['VpcSummaryRoute']
 
     responseData = {}
@@ -157,7 +156,7 @@ def lambda_handler(event, context):
         res2 = add_route_tgw_nh(toTGWRouteTable, vpc_summary_route, transit_gateway_id)
         logger.info("Got response to route update on SecVPC {} ".format(res2))
 
-        start_resp = start_state_function(init_fw_state_machine_arn, high_capacity_vm)
+        start_resp = start_state_function(init_fw_state_machine_arn)
         logger.info("Calling start state function {} ".format(start_resp))
         cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CustomResourcePhysicalID")
         logger.info("Sending cfn success message ")
