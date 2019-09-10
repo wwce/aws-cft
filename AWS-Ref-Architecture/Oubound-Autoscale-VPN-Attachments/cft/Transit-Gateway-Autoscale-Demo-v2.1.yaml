@@ -575,9 +575,8 @@ Resources:
       Environment:
         Variables:
           Region: !Ref 'AWS::Region'
-      Code:int
-        S3Bucket: !Ref 'LambdaBucketName'
-        S3Key: create_asg.zip
+          S3Bucket: !Ref 'LambdaBucketName'
+          S3Key: create_asg.zip
       Runtime: python3.6
       Timeout: 600
     DependsOn:
