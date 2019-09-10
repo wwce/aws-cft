@@ -229,7 +229,7 @@ def pa_initialize(hostname, api_key, pa_dmz_priv_ip, pa_dmz_pub_ip, pa_asn, pa_d
     # Update 'eth1' object with private IP of eth1 interface
     mask = SubnetCidr.split("/")[1]
 
-    response1 = editIpObject(hostname, api_key, "eth1", "/".join([pa_dmz_priv_ip, mask]))
+    response1 = editIpObject(hostname, api_key, "fw_untrust_int", "/".join([pa_dmz_priv_ip, mask]))
     logger.info('Response to editipobject {}'.format(response1))
     # Update BGP router ID with public IP of eth1 and BGP ASN
     response2 = update_routerId_asn(hostname, api_key, pa_dmz_pub_ip, pa_asn)
@@ -677,6 +677,7 @@ def make_api_call(hostname, data):
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     url = "https://" + hostname + "/api"
+    logger.info('API call to firewall at {} with data {}'.format(hostname, data))
     encoded_data = urllib.parse.urlencode(data).encode('utf-8')
     return urllib.request.urlopen(url, data=encoded_data, context=ctx).read()
 
@@ -1234,6 +1235,13 @@ def config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_
     TransitGatewayRouteTableId = os.environ['tgwRouteId']
     # api_key = getApiKey(gwMgmtPubIp, username, password)
     api_key = os.environ['apikey']
+    response = get_available_bgp_tunnel_ip_pool(table_name, instanceId, cgw1Tag)
+    N1T2 = response['N1T2']
+    N1T1 = response['N1T1']
+    cgwId = create_cgw(fwUntrustPubIP, pa_asn, Region, cgw1Tag)
+
+    vpnId = create_vpn_connection_upload_to_s3(Region, tgwId, cgwId, N1T1, N1T2, tag, bucketName, assumeRoleArn=None)
+    update_bgp_table(table_name, vpnId, cgwId, instanceId)
 
     while True:
         err = getFirewallStatus(gwMgmtPubIp, api_key)
@@ -1270,13 +1278,6 @@ def config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_
     pa_initialize(gwMgmtPubIp, api_key, fwUntrustPrivIP, gwMgmtPubIp, pa_asn, fwUntrustSubnetGw, fwUntrustSubnetCidr,
                   license_api_key="")
     pan_commit(gwMgmtPubIp, api_key, message="VpnConfigured")
-    cgwId = create_cgw(fwUntrustPubIP, pa_asn, Region, cgw1Tag)
-
-    response = get_available_bgp_tunnel_ip_pool(table_name, instanceId, cgw1Tag)
-    N1T2 = response['N1T2']
-    N1T1 = response['N1T1']
-
-    vpnId = create_vpn_connection_upload_to_s3(Region, tgwId, cgwId, N1T1, N1T2, tag, bucketName, assumeRoleArn=None)
 
     vpnConfDict = loadVpnConfigFromS3(bucketName, vpnId)
     # Returns Dict
@@ -1300,21 +1301,21 @@ def config_gw(fwUntrustPubIP, gwMgmtPubIp, fwUntrustPrivIP, fwUntrustSubnet, pa_
     resource_id = vpnConfDict['id']
     logger.info('resource_id is {} from vpnConfDict {}'.format(resource_id, vpnConfDict))
 
-    attachment_id = get_tgw_vpn_attachmentid(str(vpnId))
-    if attachment_id:
-        logger.info('latest attachment id is {}'.format(attachment_id))
-        create_vpn_association(attachment_id, TransitGatewayRouteTableId)
-        create_vpn_propagation(attachment_id, TransitGatewayRouteTableId)
-    else:
-        logger.info('Didnt get attachmentid for vpn')
-
-    update_bgp_table(table_name, vpnId, cgwId, instanceId)
+    # attachment_id = get_tgw_vpn_attachmentid(str(vpnId))
+    # if attachment_id:
+    #     logger.info('latest attachment id is {}'.format(attachment_id))
+    #     create_vpn_association(attachment_id, TransitGatewayRouteTableId)
+    #     create_vpn_propagation(attachment_id, TransitGatewayRouteTableId)
+    # else:
+    #     logger.info('Didnt get attachmentid for vpn')
 
     peerGroup = 'tgw-out'
     confVpnStatus = pa_configure_vpn(gwMgmtPubIp, api_key, vpnConfDict, peerGroup,
                                      ikeProfile="default", ipsecProfile="default",
                                      pa_dmz_inf="ethernet1/1", virtualRouter="default",
                                      zone="Untrust")
+
+    manage_route_tables()
 
     if not confVpnStatus:
         pan_rollback(gwMgmtPubIp, api_key)
@@ -1525,6 +1526,105 @@ def update_bgp_table(tableName, vpnId, cgwId, instanceId):
 def terminate(value):
     print(value)
     exit(0)
+
+
+def get_vpn_connections():
+    vpn_ids = []
+    attachments = ec2_client.describe_transit_gateway_attachments(
+        Filters=[{'Name': 'resource-type', 'Values': ['vpn']}, {'Name': 'state', 'Values': ['available', 'pending']}])
+    logger.info('Describe attachments returned {}'.format(attachments))
+    attachment_list = attachments.get('TransitGatewayAttachments')
+    logger.info('Attachment list is {}'.format(attachment_list))
+    if len(attachment_list) > 0:
+        for vpn_attachment in attachment_list:
+            if vpn_attachment.get('ResourceId'):
+                vpn_ids.append(vpn_attachment)
+        return vpn_ids
+    else:
+        logger.info('Found no vpn attachments')
+        return vpn_ids
+
+
+def create_vpn_association(attachment_id, tgw_route_table_id):
+    try:
+        logger.info(
+            'Creating association of attachmentid {} and route_table_id {}'.format(attachment_id, tgw_route_table_id))
+        response = ec2_client.associate_transit_gateway_route_table(
+            TransitGatewayRouteTableId=tgw_route_table_id,
+            TransitGatewayAttachmentId=attachment_id,
+            DryRun=False
+        )
+        return True
+    except Exception as e:
+        logger.info('Got vpn association error {}'.format(e))
+        return False
+
+
+def create_vpn_propagation(attachment_id, tgw_route_table_id):
+    try:
+        logger.info(
+            'Creating propagation of attachmentid {} and route_table_id {}'.format(attachment_id, tgw_route_table_id))
+        response1 = ec2_client.enable_transit_gateway_route_table_propagation(
+            TransitGatewayRouteTableId=tgw_route_table_id,
+            TransitGatewayAttachmentId=attachment_id,
+            DryRun=False
+        )
+        return True
+    except Exception as e:
+        logger.info('Got vpn propagation error {}'.format(e))
+        return False
+
+
+def get_attachment_state(attachment):
+    attachment_data = ec2_client.describe_transit_gateway_attachments(
+        TransitGatewayAttachmentIds=[attachment.get('TransitGatewayAttachmentId')])
+    attachment_state = attachment_data['TransitGatewayAttachments'][0]['State']
+    return attachment_state
+
+
+def manage_route_tables():
+    # primary_prepend_length = '1'
+    # secondary_prepend_length = '2'
+    # update_as_path(fw1, export_rule, api_key, primary_prepend_length)
+    # panCommit(fw1, api_key, message="")
+    # update_as_path(fw2, export_rule, api_key, secondary_prepend_length)
+    # panCommit(fw2, api_key, message="")
+
+    tgws = []
+    table_list = ec2_client.describe_transit_gateway_route_tables(Filters=[
+        {'Name': 'tag:Propagate', 'Values': ['NS']}
+    ])
+    tables = table_list.get('TransitGatewayRouteTables')
+
+    for table in tables:
+        tgws.append(table.get('TransitGatewayRouteTableId'))
+
+    logger.info('These tables are tagged for North South Route Propagation {}'.format(tgws))
+    #
+    #
+    attachments = get_vpn_connections()
+    for attachment in attachments:
+        while True:
+            logger.info('Processing Attachment {}'.format(attachment))
+            attachment_state = get_attachment_state(attachment)
+            if attachment_state == 'available' and not attachment.get('Association'):
+                logger.info(
+                    'Setting propagation for attachment {}'.format(attachment.get('TransitGatewayAttachmentId')))
+                [create_vpn_propagation(attachment.get('TransitGatewayAttachmentId'), tgwrt) for tgwrt in tgws]
+                res = create_vpn_association(attachment.get('TransitGatewayAttachmentId'), tgw_route_table_id)
+                break
+
+            elif attachment_state == 'available' and attachment.get('Association'):
+                logger.info('Attachment {} is already association with route table'.format(
+                    attachment.get('TransitGatewayAttachmentId')))
+                break
+            elif attachment_state == 'pending':
+                logger.info('Waiting for attachment to come up')
+                time.sleep(20)
+            else:
+                logger.info('Attachment is in an unknown state - moving on')
+                break
+        logger.info('Finished Processing Attachment {}'.format(attachment.get('TransitGatewayAttachmentId')))
 
 
 def config_fw_lambda_handler(event, context):
