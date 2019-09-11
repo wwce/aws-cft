@@ -1,13 +1,9 @@
-# AWS Transit Gateway Version 2
+# Protecting East West Traffic 
+## Firewalls with VPN attachments and BGP Failover
 
-Adds the ability to deploy Firewalls into an Autoscale group for securing connections to the internet
+The deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/AWS_TGW_Direct_Attach_deployment_guide-v2.docx?raw=true)
 
-Changes to direct attach template include
-1) Clean up of parameters section - Removed subnet cidr definition (Can be changed in the mapping section)
-2) Combined the lambda functions into a single zip file and added lamda layers so that lambda functions are visible in the function editor.
-
-![alt_text](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/images/TGW-Direct-Attach.png)
-
+![alt_text](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/images/TransitGateway.png "topology")
 The firewall management interface can be reached via the NAT instance
 
 The default account for the firewalls is
@@ -24,9 +20,7 @@ AWS Transit Gateway is a service that enables customers to connect their Amazon 
 With AWS Transit Gateway, you only have to create and manage a single connection from the central gateway in to each Amazon VPC, on-premises data center, or remote office across your network. Transit Gateway acts as a hub that controls how traffic is routed among all the connected networks which act like spokes. This hub and spoke model significantly simplifies management and reduces operational costs because each network only has to connect to the Transit Gateway and not to every other network. Any new VPC is simply connected to the Transit Gateway and is then automatically available to every other network that is connected to the Transit Gateway. This ease of connectivity makes it easy to scale your network as you grow.
 
 
-The deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/AWS_TGW_Direct_Attach_deployment_guide-v2.docx?raw=true)
 
-![alt_text](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/images/TransitGateway.png "topology")
 
 # Support Policy: Community-Supported
 The code and templates in this repository are released under an as-is, best effort, support policy. These scripts should viewed as community supported and Palo Alto Networks will contribute our expertise as and when possible. We do not provide technical support or help in using or troubleshooting the components of the project through our normal support options such as Palo Alto Networks support teams, or ASC (Authorized Support Centers) partners and backline support options. The underlying product used (the VM-Series firewall) by the scripts or templates are still supported, but the support is only for the product functionality and not for help in deploying or using the template or script itself. Unless explicitly tagged, all projects or work posted in our GitHub repository (at https://github.com/PaloAltoNetworks) or sites other than our official Downloads page on https://support.paloaltonetworks.com are provided under the best effort policy.
