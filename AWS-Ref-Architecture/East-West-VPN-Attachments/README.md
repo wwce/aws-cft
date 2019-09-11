@@ -3,7 +3,7 @@
 
 The deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/AWS_TGW_Direct_Attach_deployment_guide-v2.docx?raw=true)
 
-![alt_text](https://github.com/wwce/aws-cft/blob/master/transitgateway-demo-v2/documentation/images/TransitGateway.png "topology")
+![alt_text](https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/East-West-VPN-Attachments/documentation/TGW-VPN-Attach.png "topology")
 The firewall management interface can be reached via the NAT instance
 
 The default account for the firewalls is
