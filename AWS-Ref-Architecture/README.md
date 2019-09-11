@@ -2,7 +2,7 @@
 # AWS Transit VPC with VM-Series
 Three templates that deploy VM series firewalls as discribed in the deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://www.paloaltonetworks.com/resources/guides/aws-transit-gateway-deployment-guide?raw=true)
 
-![alt_text](https://github.com/wwce/aws-cft/AWS-Ref-Architecture/blob/RA-Image.png "topology")
+![alt_text](https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/RA-Image.png "topology")
 
 This solution deploys a secured Transit Gateway in AWS.  This allows you to secure many spoke or VPCs using centralized VM-Series firewalls in the Security VPC.   This solution will secure traffic between VPCs, between a VPC and an on-prem/hybrid cloud resource, and outbound traffic.  Securing outbound traffic in the Security VPC allows you to allow safely enabled access to the Internet for tasks like software installs and patches without backhauling the traffic to an on prem-firewall for security.
 
