@@ -19,7 +19,7 @@ With AWS Transit Gateway, you only have to create and manage a single connection
 
 The deployment guide can be found here [Transit Gatway with VM-Series Deployment Guide](https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/East-West-VPC-Attachments/documentation/AWS_TGW_Direct_Attach_deployment_guide-v2.pdf?raw=true)
 
-![alt_text](https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/East-West-VPC-Attachments/documentation/images/TGW-Direct-Attach.png "topology")
+![alt_text](https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/East-West-VPC-Attachments/documentation/images/TransitGateway.png "topology")
 
 https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/East-West-VPN-Attachments/documentation/TGW-VPN-Attach.png
 
