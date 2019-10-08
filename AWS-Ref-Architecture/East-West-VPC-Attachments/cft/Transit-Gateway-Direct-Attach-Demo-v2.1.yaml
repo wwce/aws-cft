@@ -1625,7 +1625,7 @@ Resources:
       DefinitionString: !Sub
         - |-
           {
-             "Comment": "A Hello World example of the Amazon States Language using an AWS Lambda function",
+             "Comment": "Step function to loop waiting for firewall to start up",
              "StartAt": "InitialiseFw",
              "States": {
                 "InitialiseFw": {
