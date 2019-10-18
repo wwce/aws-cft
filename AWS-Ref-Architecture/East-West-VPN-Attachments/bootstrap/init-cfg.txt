@@ -6,7 +6,7 @@ ipv6-address=
 ipv6-default-gateway=
 hostname=
 dns-primary=8.8.8.8
-op-command-modes=mgmt-interface-swap
+
 dhcp-send-hostname=yes
 dhcp-send-client-id=yes
 dhcp-accept-server-hostname=yes

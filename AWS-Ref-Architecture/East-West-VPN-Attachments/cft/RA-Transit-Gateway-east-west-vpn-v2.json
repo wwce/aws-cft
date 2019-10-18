@@ -235,7 +235,7 @@
       "eu-west-1": {
         "Bundle1": "ami-edb0fe94",
         "Bundle2": "ami-1fb1ff66",
-        "BYOL": "ami-62b5fb1b"
+        "BYOL": "ami-09312982f28611e13"
       },
       "eu-west-2": {
         "Bundle1": "ami-f46a8d93",

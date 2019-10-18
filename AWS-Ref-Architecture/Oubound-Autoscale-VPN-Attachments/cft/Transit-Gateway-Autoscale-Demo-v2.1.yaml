@@ -219,6 +219,54 @@ Metadata:
       VpcAzs:
         default: 'Select  AZs:'
 Resources:
+  TransitAssumeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join
+        - '-'
+        - - TransitAssumeRole
+          - !Ref 'AWS::StackName'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Join
+                - ':'
+                - - 'arn:aws:iam:'
+                  - !Ref 'AWS::AccountId'
+                  - root
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: !Join
+            - '-'
+            - - TransitAssumeRolePolicy
+              - !Ref 'AWS::StackName'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: S3Actions
+                Effect: Allow
+                Action:
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:ListBucket
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutObjectTagging
+                Resource:
+                  - '*'
+              - Sid: SNSACtions
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource:
+                  - '*'
+
   BootstrapRole:
     Type: AWS::IAM::Role
     Properties:
