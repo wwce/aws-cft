@@ -728,7 +728,7 @@
         "UnhealthyThresholdCount" : 10,
         "HealthCheckProtocol" : "HTTP",
         "HealthCheckPort" : "81",
-        "HealthCheckPath" : "/index.html",
+        "HealthCheckPath" : "/",
         "Matcher" : {
             "HttpCode" : "200"
         },
