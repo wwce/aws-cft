@@ -15,6 +15,7 @@ This build is an adaptation of the [East-West-VPC-Attachments](https://github.co
 
 ### How to Deploy
 1.  Follow the guide for the direct attach firewalls substituing the lambda files and CFT template file)
+(https://github.com/wwce/aws-cft/blob/master/AWS-Ref-Architecture/East-West-VPC-Attachments/documentation/AWS_TGW_Direct_Attach_deployment_guide-v2.pdf)
 2.  Follow the **guide.pdf** for additional instructions.  
 
 
