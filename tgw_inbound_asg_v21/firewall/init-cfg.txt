@@ -1,0 +1,17 @@
+op-command-modes=mgmt-interface-swap
+type=dhcp-client
+ip-address=
+default-gateway=
+netmask=
+ipv6-address=
+ipv6-default-gateway=
+hostname=
+vm-auth-key=918138838045174
+panorama-server=138.91.121.77
+panorama-server-2=
+tplname=awsdemo2.1_templstack
+dgname=awsdemo2.1_dg
+dhcp-send-hostname=yes
+dhcp-send-client-id=yes
+dhcp-accept-server-hostname=yes
+dhcp-accept-server-domain=yes
