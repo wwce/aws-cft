@@ -22,10 +22,7 @@ Parameters:
   VpcAzs:
     Type: List<AWS::EC2::AvailabilityZone::Name>
     Description: Select 2 AZs
-  NatInstanceType:
-    Description: Instance type to use for NAT
-    Type: String
-    Default: t2.micro
+
   SSHLocation:
     Description: Restrict SSH & HTTPS access to the Web Servers (by default can be
       accessed from anywhere)
@@ -97,58 +94,34 @@ Parameters:
   TGWID:
     Description: Transit Gateway resource ID (i.e. tgw-xxxxxx)
     Type: String
-    Default: tgw-028959cc88d20983d
+    Default: tgw-08ba52ffc2d66b864
+  SecurityHubRouteTable:
+    Description: Transit Gateway Route Table to associate with the VM-Series (i.e. tgw-rtb-xxxxxx)
+    Type: String
+    Default: tgw-rtb-04b38d4cf50530033
+  SpokeVPCRouteTable:
+    Description: Transit Gateway Route Table to associate with spoke VPCs (i.e. tgw-rtb-xxxxxx)
+    Type: String
+    Default: tgw-rtb-0806a3f895190d22a
 Mappings:
   CidrBlockMap:
     VpcCidrBlock:
-      CidrBlock: 192.168.0.0/16
+      CidrBlock: 172.16.254.0/24
     MgmtCidrBlock:
-      CidrBlockAz1: 192.168.1.0/24
-      CidrBlockAz2: 192.168.2.0/24
+      CidrBlockAz1: 172.16.254.0/28
+      CidrBlockAz2: 172.16.254.16/28
     UntrustCidrBlock:
-      CidrBlockAz1: 192.168.11.0/24
-      CidrBlockAz2: 192.168.12.0/24
+      CidrBlockAz1: 172.16.254.32/28
+      CidrBlockAz2: 172.16.254.48/28
     TrustCidrBlock:
-      CidrBlockAz1: 192.168.21.0/24
-      CidrBlockAz2: 192.168.22.0/24
-    DMZCidrBlock:
-      CidrBlockAz1: 192.168.101.0/24
-      CidrBlockAz2: 192.168.111.0/24
+      CidrBlockAz1: 172.16.254.64/28
+      CidrBlockAz2: 172.16.254.80/28
     LambdaCidrBlock:
-      CidrBlockAz1: 192.168.100.0/28
-      CidrBlockAz2: 192.168.100.32/28
+      CidrBlockAz1: 172.16.254.96/28
+      CidrBlockAz2: 172.16.254.112/28
     TGWattachCidrBlock:
-      CidrBlockAz1: 192.168.31.0/28
-      CidrBlockAz2: 192.168.32.0/28
-  AWSNATAMI:
-    us-east-1:
-      AMI: ami-b419e7ce
-    us-west-2:
-      AMI: ami-0b707a72
-    us-east-2:
-      AMI: ami-021e3167
-    us-west-1:
-      AMI: ami-004b0f60
-    ca-central-1:
-      AMI: ami-12d36a76
-    eu-west-1:
-      AMI: ami-076d5d61
-    eu-west-2:
-      AMI: ami-0a4c5a6e
-    eu-central-1:
-      AMI: ami-0469bb6b
-    ap-southeast-1:
-      AMI: ami-047a3667
-    ap-southeast-2:
-      AMI: ami-17809174
-    ap-northeast-1:
-      AMI: ami-10dfc877
-    ap-northeast-2:
-      AMI: ami-1a1bc474
-    ap-south-1:
-      AMI: ami-6dc38202
-    sa-east-1:
-      AMI: ami-54e59738
+      CidrBlockAz1: 172.16.254.128/28
+      CidrBlockAz2: 172.16.254.144/28
   Constants:
     S3URL:
       URL1: https://s3.amazonaws.com
@@ -173,7 +146,6 @@ Metadata:
           - LambdaSubnetIpBlocks
           - TrustSubnetIpBlocks
           - UntrustSubnetIpBlocks
-          - DMZSubnetIpBlocks
           - TGWattachIPBlocks
       - Label:
           default: Lambda Configuration
@@ -403,73 +375,29 @@ Resources:
             - '-'
             - - !Ref 'AWS::StackName'
               - attach-sec
-
-  SecurityVPCRouteTable:
-    Type: AWS::EC2::TransitGatewayRouteTable
-    Properties:
-      TransitGatewayId: !Ref TGWID
-      Tags:
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - rtb-security
   SecurityVPCAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     DependsOn:
-      - SecurityVPCRouteTable
       - SecurityVPCAttachment
     Properties:
-      TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
+      TransitGatewayRouteTableId: !Ref 'SecurityHubRouteTable'
       TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
   SecurityVPCPropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
       TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
-      TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
+      TransitGatewayRouteTableId: !Ref 'SecurityHubRouteTable'
     DependsOn:
       - SecurityVPCAttachment
-      - SecurityVPCRouteTable
-  DMZSubnetAz1:
-    Type: AWS::EC2::Subnet
+
+  SpokeVPCPropagation:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
-      AvailabilityZone: !Select
-        - '0'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'SecurityVPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - DMZCidrBlock
-        - CidrBlockAz1
-      Tags:
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - DMZSubnetAzA
+      TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
+      TransitGatewayRouteTableId: !Ref 'SpokeVPCRouteTable'
     DependsOn:
-      - SecurityVPC
-  DMZSubnetAz2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: !Select
-        - '1'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'SecurityVPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - DMZCidrBlock
-        - CidrBlockAz2
-      Tags:
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - DMZSubnetAzB
-    DependsOn:
-      - SecurityVPC
+      - SecurityVPCAttachment
+
   MGMTSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -678,7 +606,9 @@ Resources:
               - rt-fromTGW
     DependsOn:
       - SecurityVPC
-  DMZRouteTable:
+
+
+  MGMTRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref 'SecurityVPC'
@@ -689,10 +619,10 @@ Resources:
           Value: !Join
             - '-'
             - - !Ref 'AWS::StackName'
-              - DMZRouteTable
+              - MGMTRouteTable1
     DependsOn:
       - SecurityVPC
-  MGMTRouteTable:
+  MGMTRouteTable2:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref 'SecurityVPC'
@@ -703,10 +633,10 @@ Resources:
           Value: !Join
             - '-'
             - - !Ref 'AWS::StackName'
-              - MGMTRouteTable
+              - MGMTRouteTable2
     DependsOn:
       - SecurityVPC
-  LambdaRouteTable:
+  LambdaRouteTable1:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref 'SecurityVPC'
@@ -717,7 +647,21 @@ Resources:
           Value: !Join
             - '-'
             - - !Ref 'AWS::StackName'
-              - LambdaRouteTable
+              - LambdaRouteTable1
+    DependsOn:
+      - SecurityVPC
+  LambdaRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'SecurityVPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - LambdaRouteTable2
     DependsOn:
       - SecurityVPC
   UNTRUSTRouteTable:
@@ -748,50 +692,35 @@ Resources:
               - rt-ToTGW
     DependsOn:
       - SecurityVPC
-  DMZSubnetAz1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref 'DMZSubnetAz1'
-      RouteTableId: !Ref 'DMZRouteTable'
-    DependsOn:
-      - DMZSubnetAz1
-      - DMZRouteTable
-  DMZSubnetAz2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref 'DMZSubnetAz2'
-      RouteTableId: !Ref 'DMZRouteTable'
-    DependsOn:
-      - DMZRouteTable
-      - DMZSubnetAz2
+
   MGMT1SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref 'MGMTSubnetAz1'
-      RouteTableId: !Ref 'MGMTRouteTable'
+      RouteTableId: !Ref 'MGMTRouteTable1'
     DependsOn:
-      - MGMTRouteTable
+      - MGMTRouteTable1
   MGMT2SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref 'MGMTSubnetAz2'
-      RouteTableId: !Ref 'MGMTRouteTable'
+      RouteTableId: !Ref 'MGMTRouteTable2'
     DependsOn:
-      - MGMTRouteTable
+      - MGMTRouteTable2
   Lambda1SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref 'LambdaSubnetAz1'
-      RouteTableId: !Ref 'LambdaRouteTable'
+      RouteTableId: !Ref 'LambdaRouteTable1'
     DependsOn:
-      - LambdaRouteTable
+      - LambdaRouteTable1
   Lambda2SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref 'LambdaSubnetAz2'
-      RouteTableId: !Ref 'LambdaRouteTable'
+      RouteTableId: !Ref 'LambdaRouteTable2'
     DependsOn:
-      - LambdaRouteTable
+      - LambdaRouteTable2
   UNTRUSTSubnetRouteTableAssociationAz1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -838,33 +767,40 @@ Resources:
       RouteTableId: !Ref 'fromTGWRouteTable'
     DependsOn:
       - TGWattach2
-  MGMTRoute:
+  MGMTRoute1:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref 'MGMTRouteTable'
+      RouteTableId: !Ref 'MGMTRouteTable1'
       DestinationCidrBlock: '0.0.0.0/0'
-      InstanceId: !Ref 'natInstance'
+      NatGatewayId: !Ref 'NATGw1'
     DependsOn:
-      - natInstance
-      - MGMTRouteTable
-  LambdaRoute:
+      - NATGw1
+      - MGMTRouteTable1
+  MGMTRoute2:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref 'LambdaRouteTable'
+      RouteTableId: !Ref 'MGMTRouteTable2'
       DestinationCidrBlock: '0.0.0.0/0'
-      InstanceId: !Ref 'natInstance'
+      NatGatewayId: !Ref 'NATGw2'
     DependsOn:
-      - natInstance
-      - LambdaRouteTable
-  DMZRoute:
+      - NATGw2
+      - MGMTRouteTable2
+  LambdaRoute1:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref 'DMZRouteTable'
+      RouteTableId: !Ref 'LambdaRouteTable1'
       DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref 'InternetGateway'
+      NatGatewayId: !Ref 'NATGw1'
     DependsOn:
-      - DMZRouteTable
-      - InternetGateway
+      - LambdaRouteTable1
+  LambdaRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'LambdaRouteTable2'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NATGw2'
+    DependsOn:
+      - LambdaRouteTable2
   UNTRUSTRoute:
     Type: AWS::EC2::Route
     Properties:
@@ -923,6 +859,22 @@ Resources:
       - GatewayToInternet
       - InternetGateway
   EIP2:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    DependsOn:
+      - SecurityVPC
+      - GatewayToInternet
+      - InternetGateway
+  EIP3:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    DependsOn:
+      - SecurityVPC
+      - GatewayToInternet
+      - InternetGateway
+  EIP4:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
@@ -1071,28 +1023,29 @@ Resources:
               - AWSFW2Trust
     DependsOn:
       - sgWideOpen
-  natInstance:
-    Type: AWS::EC2::Instance
+
+  NATGw1:
+    Type: AWS::EC2::NatGateway
     Properties:
-      ImageId: !FindInMap
-        - AWSNATAMI
-        - !Ref 'AWS::Region'
-        - AMI
-      InstanceType: !Ref 'NatInstanceType'
-      KeyName: !Ref 'KeyName'
-      SourceDestCheck: false
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: true
-          DeviceIndex: '0'
-          SubnetId: !Ref 'DMZSubnetAz1'
-          GroupSet:
-            - !Ref 'sgWideOpen'
+      AllocationId: !GetAtt 'EIP3.AllocationId'
+      SubnetId: !Ref 'LambdaSubnetAz1'
       Tags:
         - Key: Name
           Value: !Join
             - '-'
             - - !Ref 'AWS::StackName'
-              - TGWNatInstance
+              - NatGw1
+  NATGw2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'EIP4.AllocationId'
+      SubnetId: !Ref 'LambdaSubnetAz2'
+      Tags:
+        - Key: Name
+          Value: !Join
+            - '-'
+            - - !Ref 'AWS::StackName'
+              - NatGw2
   FW1Instance:
     Type: AWS::EC2::Instance
     Properties:
@@ -1447,9 +1400,6 @@ Outputs:
   Fw2PublicIP:
     Value: !Ref 'EIP2'
     Description: Firewall 1 Untrust Interface Public IP
-  NATInstancePublicIp:
-    Value: !GetAtt 'natInstance.PublicIp'
-    Description: NAT Instance Public IP
   Fw1MgmtIP:
     Value: !GetAtt 'FW1ManagementNetworkInterface.PrimaryPrivateIpAddress'
     Description: Firewall 1 Untrust Interface Public IP
