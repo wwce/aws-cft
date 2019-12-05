@@ -422,6 +422,14 @@ Resources:
     Properties:
       TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
       TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
+  SecurityVPCPropagation:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties:
+      TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
+      TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
+    DependsOn:
+      - SecurityVPCAttachment
+      - SecurityVPCRouteTable
   DMZSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
