@@ -100,7 +100,10 @@ Parameters:
   VpcSummaryRoute:
     Description: In this case we use the default as this is a spoke
     Type: String
-    Default: 0.0.0.0/0
+    Default: default
+    AllowedValues:
+      - rfc-1918
+      - default
   SecurityHubRouteTable:
     Type: String
     Default: tgw-rtb-04b38d4cf50530033
@@ -904,6 +907,9 @@ Resources:
       - ILBRouteTable
     Properties:
       ServiceToken: !GetAtt 'TransitGatewayInitialiseLambda.Arn'
+      routes_to_add: VpcSummaryRoute
+      route_tables:
+        - ILBRouteTable
   ASLambdalayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
