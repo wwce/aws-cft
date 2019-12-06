@@ -907,9 +907,11 @@ Resources:
       - ILBRouteTable
     Properties:
       ServiceToken: !GetAtt 'TransitGatewayInitialiseLambda.Arn'
-      routes_to_add: VpcSummaryRoute
+      routes_to_add:
+        Ref: "VpcSummaryRoute"
       route_tables:
-        - ILBRouteTable
+        - Ref: "ILBRouteTable"
+
   ASLambdalayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
@@ -935,16 +937,14 @@ Resources:
         S3Key: !Ref 'LambdaZipFileName'
       Environment:
         Variables:
-          toTGWRouteTableId: !Ref 'ILBRouteTable'
           transitGatewayid: !Ref 'TGWID'
-          vpc0HostRouteTableid: 'Null'
-          vpc1HostRouteTableid: 'Null'
           region: !Ref 'AWS::Region'
           VpcSummaryRoute: !Ref 'VpcSummaryRoute'
       Runtime: python3.6
       Timeout: 150
     DependsOn:
       - ILBRouteTable
+      - TGWAttachment
   LambdaExecutionRole0:
     Type: AWS::IAM::Role
     Properties:
