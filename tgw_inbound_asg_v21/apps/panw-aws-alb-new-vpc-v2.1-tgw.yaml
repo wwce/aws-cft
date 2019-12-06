@@ -919,6 +919,8 @@ Resources:
         Variables:
           toTGWRouteTableId: !Ref 'ILBRouteTable'
           transitGatewayid: !Ref 'TGWID'
+          VPC0_route_table_id: ''
+          VPC1_route_table_id: ''
           region: !Ref 'AWS::Region'
           VpcSummaryRoute: !Ref 'VpcSummaryRoute'
       Runtime: python3.6
@@ -941,16 +943,6 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Sid: InvokeLambda
-                Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                  - lambda:ListLayerVersions
-                  - lambda:ListLayers
-                  - lambda:DeleteFunction
-                  - lambda:CreateFunction
-                Resource:
-                  - '*'
               - Effect: Allow
                 Action:
                   - sts:AssumeRole
@@ -990,6 +982,9 @@ Resources:
                   - '*'
               - Effect: Allow
                 Action:
+                  - lambda:InvokeFunction
+                  - lambda:ListLayerVersions
+                  - lambda:ListLayers
                   - lambda:AddPermission
                   - lambda:CreateEventSourceMapping
                   - lambda:CreateFunction
