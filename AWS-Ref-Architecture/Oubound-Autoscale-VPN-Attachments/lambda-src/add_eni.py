@@ -41,7 +41,7 @@ from botocore.exceptions import ClientError
 Namespace = ""
 asg_name = ""
 
-Arn = ""
+
 debug = ""
 
 asg = boto3.client('autoscaling')
@@ -711,7 +711,7 @@ def add_eni_lambda_handler(event, context):
     global Namespace
 
     global logger
-    global Arn
+
     global debug
 
     debug = "Yes"
@@ -731,8 +731,7 @@ def add_eni_lambda_handler(event, context):
 
     # Retrieve event from SNS
     if 'Records' in event:
-
-        message = json.loads(event['Records'][0]['Sns']['Message'])
+        message = json.loads(event)
         logger.info("Got message: {}".format(message))
         if 'LifecycleTransition' in message:
             if message.get('LifecycleTransition') == "autoscaling:EC2_INSTANCE_LAUNCHING":
@@ -812,7 +811,6 @@ def add_eni_lambda_handler(event, context):
 
     if event_type == 'launch':
         logger.info('PANW EC2 Firewall Instance is launching')
-        Arn = event['Records'][0]['EventSubscriptionArn']
 
         logger.info('LifecycleHookName1: ' + message['LifecycleHookName'])
 
@@ -988,15 +986,17 @@ def add_eni_lambda_handler(event, context):
             'fwUntrustSubnet': untrust_subnets,
             'fwMgmtSubnet': mgmt_subnets
         }
+        parameters.update(event)
+        return parameters
 
-        invoke_response = lambda_client.invoke(FunctionName=config_gw_func,
-                                               InvocationType="Event", Payload=json.dumps(parameters))
-        if invoke_response.get("StatusCode") == 202:
-            logger.info("[INFO]: Got OK from invoke lambda functions for launch. exiting...")
-            lifecycle_hook_success(message)
-
-        else:
-            logger.info("[ERROR]: Something bad happened for launch. invoke_response = {}".format(invoke_response))
-            terminate("false", message, ec2_instanceid)
+        # invoke_response = lambda_client.invoke(FunctionName=config_gw_func,
+        #                                        InvocationType="Event", Payload=json.dumps(parameters))
+        # if invoke_response.get("StatusCode") == 202:
+        #     logger.info("[INFO]: Got OK from invoke lambda functions for launch. exiting...")
+        #     lifecycle_hook_success(message)
+        #
+        # else:
+        #     logger.info("[ERROR]: Something bad happened for launch. invoke_response = {}".format(invoke_response))
+        #     terminate("false", message, ec2_instanceid)
 
         return

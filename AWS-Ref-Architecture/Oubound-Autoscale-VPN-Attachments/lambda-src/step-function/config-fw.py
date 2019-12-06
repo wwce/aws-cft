@@ -1652,8 +1652,6 @@ def config_fw_lambda_handler(event, context):
     pa_asn = os.environ['N1Asn']
     apikey = os.environ['apikey']
 
-    # username = os.environ['username']
-    # password = os.environ['password']
 
     cgw1Tag = 'justin-tag'
     tag = cgw1Tag

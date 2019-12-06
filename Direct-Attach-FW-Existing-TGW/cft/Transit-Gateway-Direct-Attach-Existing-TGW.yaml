@@ -95,7 +95,7 @@ Parameters:
     Description: Transit Gateway resource ID (i.e. tgw-xxxxxx)
     Type: String
     Default: tgw-08ba52ffc2d66b864
-  SecurityHubRouteTable:
+  SecurityVPCRouteTable:
     Description: Transit Gateway Route Table to associate with the VM-Series (i.e. tgw-rtb-xxxxxx)
     Type: String
     Default: tgw-rtb-04b38d4cf50530033
@@ -380,16 +380,16 @@ Resources:
     DependsOn:
       - SecurityVPCAttachment
     Properties:
-      TransitGatewayRouteTableId: !Ref 'SecurityHubRouteTable'
+      TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
       TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
   SecurityVPCPropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
       TransitGatewayAttachmentId: !Ref 'SecurityVPCAttachment'
-      TransitGatewayRouteTableId: !Ref 'SecurityHubRouteTable'
+      TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
     DependsOn:
       - SecurityVPCAttachment
-
+      - SecurityVPCRouteTable
   SpokeVPCPropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
@@ -397,7 +397,7 @@ Resources:
       TransitGatewayRouteTableId: !Ref 'SpokeVPCRouteTable'
     DependsOn:
       - SecurityVPCAttachment
-
+      - SecurityVPCRouteTable
   MGMTSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
