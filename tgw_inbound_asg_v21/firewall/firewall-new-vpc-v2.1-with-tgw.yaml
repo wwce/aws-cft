@@ -32,7 +32,7 @@ Parameters:
     Description: Enter the admin username for the Panorama instance
     MinLength: '3'
     MaxLength: '63'
-  BootstrapS3Bucket:
+  S3BucketName:
     Type: String
     Description: Enter the name of the Bootstrap S3 bucket for the VM-Series firewall
     MinLength: '3'
@@ -107,9 +107,12 @@ Parameters:
       - 'No'
     Description: Enable/Disable debug. Default is disabled
   VpcSummaryRoute:
-    Description: In this case we use the 172.16/12 as this is the spoke range
+    Description: This is a hub vpc, use rfc-1918
     Type: String
-    Default: 172.16.0.0/12
+    Default: rfc-1918
+    AllowedValues:
+      - rfc-1918
+      - default
 Mappings:
   BucketRegionMap:
     LambdaRegion:
@@ -233,7 +236,7 @@ Metadata:
       - Label:
           default: S3 Bucket details
         Parameters:
-          - BootstrapS3Bucket
+          - S3BucketName
           - LambdaS3Bucket
       - Label:
           default: VM-Series API Key and Panorama username
@@ -258,7 +261,7 @@ Metadata:
         default: 'Key pair:'
       SSHLocation:
         default: 'SSH From:'
-      BootstrapS3Bucket:
+      S3BucketName:
         default: Bootstrap bucket for VM-Series firewalls
       LambdaS3Bucket:
         default: 'S3 Bucket Name for Lambda Code:'
@@ -287,6 +290,18 @@ Metadata:
       SubscriberAWSAccountNumber:
         default: 'Subscriber Account Number(s):'
 Resources:
+  ASLambdalayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.6
+        - python3.7
+      Content:
+        S3Bucket: !Ref 'S3BucketName'
+        S3Key: layer.zip
+      Description: Autoscale Layer
+      LayerName: as-layer
+      LicenseInfo: MIT
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -1683,14 +1698,14 @@ Resources:
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'BootstrapS3Bucket'
+                - !Ref 'S3BucketName'
           - Effect: Allow
             Principal: '*'
             Action: s3:GetObject
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'BootstrapS3Bucket'
+                - !Ref 'S3BucketName'
                 - /*
       RouteTableIds:
         - !Ref 'UNTRUSTRouteTable'
@@ -1713,14 +1728,14 @@ Resources:
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'BootstrapS3Bucket'
+                - !Ref 'S3BucketName'
           - Effect: Allow
             Principal: '*'
             Action: s3:GetObject
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'BootstrapS3Bucket'
+                - !Ref 'S3BucketName'
                 - /*
       RouteTableIds:
         - !Ref 'UNTRUSTRouteTable'
@@ -1743,14 +1758,14 @@ Resources:
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'BootstrapS3Bucket'
+                - !Ref 'S3BucketName'
           - Effect: Allow
             Principal: '*'
             Action: s3:GetObject
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'BootstrapS3Bucket'
+                - !Ref 'S3BucketName'
                 - /*
       RouteTableIds:
         - !Ref 'UNTRUSTRouteTable'
@@ -1781,13 +1796,13 @@ Resources:
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'BootstrapS3Bucket'
+                    - !Ref 'S3BucketName'
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'BootstrapS3Bucket'
+                    - !Ref 'S3BucketName'
                     - /*
               - Effect: Allow
                 Action:
@@ -1925,14 +1940,14 @@ Resources:
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'BootstrapS3Bucket'
+                    - !Ref 'S3BucketName'
                     - /*
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'BootstrapS3Bucket'
+                    - !Ref 'S3BucketName'
                     - /*
               - Effect: Allow
                 Action: s3:ListBucket
@@ -2151,32 +2166,53 @@ Resources:
   SetTransitGatewayIdRoute:
     Type: AWS::CloudFormation::CustomResource
     DependsOn:
-      - ILBRouteTable
+      - "TGWAttachment"
+      - "MGMTRouteTableAz1"
+      - "MGMTRouteTableAz2"
+      - "TrustRouteTableAz1"
+      - "TrustRouteTableAz1"
     Properties:
       ServiceToken: !GetAtt 'TransitGatewayInitialiseLambda.Arn'
+      routes_to_add:
+        Ref: "VpcSummaryRoute"
+      route_tables:
+        - Ref: "MGMTRouteTableAz1"
+        - Ref: "MGMTRouteTableAz2"
+        - Ref: "TrustRouteTableAz1"
+        - Ref: "TrustRouteTableAz2"
   TransitGatewayInitialiseLambda:
     Type: AWS::Lambda::Function
     Properties:
       Description: Start the step function to initialise firewall
-      Handler: SecOnlyTransitGatewayInitialiseLambda.lambda_handler
+      Handler: setRouteTablelambda.lambda_handler
       Role: !GetAtt 'LambdaExecutionRole1.Arn'
       Layers:
         - !Ref 'ASLambdalayer'
       Code:
-        S3Bucket: !Ref 'S3BucketName'
-        S3Key: !Ref 'LambdaZipFileName'
+        S3Bucket: !If
+          - PANWScript
+          - !Join
+            - '-'
+            - - panw-aws-autoscale-v21
+              - !Ref 'AWS::Region'
+          - !Ref 'LambdaS3Bucket'
+        S3Key: !FindInMap
+          - KeyMap
+          - Key
+          - Key
       Environment:
         Variables:
-          VPC0_route_table_id: ''
-          VPC1_route_table_id: ''
-          toTGWRouteTableId: TrustRouteTableAz1
           transitGatewayid: !Ref 'TGWID'
           region: !Ref 'AWS::Region'
           VpcSummaryRoute: !Ref 'VpcSummaryRoute'
       Runtime: python3.6
       Timeout: 150
     DependsOn:
-      - ILBRouteTable
+      - MGMTRouteTableAz1
+      - MGMTRouteTableAz2
+      - TrustRouteTableAz1
+      - TrustRouteTableAz1
+      - TGWAttachment
   LambdaExecutionRole1:
     Type: AWS::IAM::Role
     Properties:
@@ -2578,7 +2614,7 @@ Resources:
       LambdaExecutionRole: !Ref 'LambdaExecutionRole'
       ASGNotifierRole: !GetAtt 'ASGNotifierRole.Arn'
       ASGNotifierRolePolicy: !Ref 'ASGNotifierRolePolicy'
-      BootstrapS3Bucket: !Ref 'BootstrapS3Bucket'
+      S3BucketName: !Ref 'S3BucketName'
       LambdaS3Bucket: !Ref 'LambdaS3Bucket'
       PanS3KeyTpl: !FindInMap
         - KeyMap
@@ -2668,7 +2704,7 @@ Resources:
           Fn::Join:
             - ''
             - - vmseries-bootstrap-aws-s3bucket=
-              - !Ref 'BootstrapS3Bucket'
+              - !Ref 'S3BucketName'
 Outputs:
   ScalingParameter:
     Value: !FindInMap
@@ -2736,11 +2772,11 @@ Outputs:
   SSHLocation:
     Value: !Ref 'SSHLocation'
     Description: Make sure you SSH from this IP address
-  BootstrapS3Bucket:
+  S3BucketName:
     Value: !Join
       - ''
       - - 'arn:aws:s3:::'
-        - !Ref 'BootstrapS3Bucket'
+        - !Ref 'S3BucketName'
     Description: Your Bootstrap bucket being used for this deployment
   LambdaS3Bucket:
     Value: !Join
