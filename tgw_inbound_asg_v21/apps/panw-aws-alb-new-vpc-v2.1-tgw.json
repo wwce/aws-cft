@@ -26,7 +26,7 @@
       "Type": "String",
       "MinLength": "6",
       "MaxLength": "75",
-      "Default": "panwVPC"
+      "Default": "albspokeVPC"
     },
     "VpcAzs": {
       "Type": "List<AWS::EC2::AvailabilityZone::Name>",
@@ -50,7 +50,8 @@
       "Type": "String",
       "Description": "Enter the URL of the Queue to send ILB updates to",
       "MinLength": "3",
-      "MaxLength": "1024"
+      "MaxLength": "1024",
+      "Default": "https://sqs.us-east-1.amazonaws.com/106808901653/justin-asgv21-NetworkLoadBalancerQueue-18QKQQ2NFC054"
     },
     "SSHLocation": {
       "Description": "Restrict SSH & HTTPS access to the Web Servers (by default can be accessed from anywhere)",
@@ -64,25 +65,23 @@
     "S3BucketName": {
       "Type": "String",
       "Description": "Enter the name of the S3 Bucket which contains the lambda function code",
-      "MinLength": "3",
-      "MaxLength": "120"
+      "Default": "asgv21-justin"
     },
     "LambdaZipFileName": {
       "Type": "String",
       "Description": "Enter the name of the S3 object which contains the lambda function code",
-      "MinLength": "3",
-      "MaxLength": "120"
+      "Default": "ilb.zip"
     },
     "PeerConnectionTargetCIDRs": {
       "Type": "CommaDelimitedList",
-      "Default": "",
+      "Default": "192.168.2.0/24,192.168.12.0/24",
       "Description": "Comma delimited List of firewall ILB subnet CIDRs to allow traffic from (based on number of firewall AZs above)"
     },
     "NumberOfFWAZs": {
       "Description": "Total number of AZs in the firewall deployment (Min 2 and Max 4 depending on az availability)",
       "Type": "Number",
       "MinValue": "2",
-      "MaxValue": "4",
+      "MaxValue": "2",
       "Default": "2"
     },
     "VPCCIDR": {
@@ -99,19 +98,19 @@
     },
     "TGWID": {
       "Type": "String",
-      "Default": "tgw-",
-      "Description": "Transit Gateway resource ID (i.e. tgw-xxxxxx)",
-      "AllowedPattern": ".+"
+      "Default": "tgw-08ba52ffc2d66b864",
+      "Description": "Transit Gateway resource ID (i.e. tgw-xxxxxx)"
+
     },
-    "AssociatedTGWRouteTableID": {
+    "SpokeVPCRouteTable": {
       "Type": "String",
-      "Default": "tgw-rtb-",
+      "Default": "tgw-rtb-0806a3f895190d22a",
       "Description": "Transit Gateway Route Table to associate with the VM-Series VPC attachment (i.e. tgw-rtb-xxxxxx)",
       "AllowedPattern": ".+"
     },
-    "PropagatedTGWRouteTableID": {
+    "SecurityHubRouteTable": {
       "Type": "String",
-      "Default": "tgw-rtb-",
+      "Default": "tgw-rtb-04b38d4cf50530033",
       "Description": "Transit Gateway route table resource ID to propagate the VM-Series VPC attachment (i.e. tgw-rtb-xxxxxx)",
       "AllowedPattern": ".+"
     },
@@ -625,7 +624,7 @@
           "Ref": "TGWAttachment"
         },
         "TransitGatewayRouteTableId": {
-          "Ref": "AssociatedTGWRouteTableID"
+          "Ref": "SpokeVPCRouteTable"
         }
       }
     },
@@ -636,7 +635,7 @@
           "Ref": "TGWAttachment"
         },
         "TransitGatewayRouteTableId": {
-          "Ref": "PropagatedTGWRouteTableID"
+          "Ref": "SecurityHubRouteTable"
         }
       }
     },
