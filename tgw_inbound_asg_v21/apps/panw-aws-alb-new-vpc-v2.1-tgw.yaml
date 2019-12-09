@@ -94,7 +94,7 @@ Parameters:
   SpokeVPCRouteTable:
     Type: String
     Default: tgw-rtb-0806a3f895190d22a
-    Description: Transit Gateway Route Table to associate with the VM-Series VPC attachment
+    Description: Transit Gateway Route Table associated with spoke VPCs
       (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
   VpcSummaryRoute:
@@ -107,7 +107,7 @@ Parameters:
   SecurityHubRouteTable:
     Type: String
     Default: tgw-rtb-04b38d4cf50530033
-    Description: Transit Gateway route table resource ID to propagate the VM-Series
+    Description: Transit Gateway Route Table associated with security VPCs
       VPC attachment (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
   SameAccount:
