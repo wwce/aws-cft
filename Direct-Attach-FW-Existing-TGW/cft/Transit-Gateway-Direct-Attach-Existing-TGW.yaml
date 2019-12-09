@@ -2,9 +2,12 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Creates an Transit Gateway with a Security VPC
 Parameters:
   VpcSummaryRoute:
+    Description: This is a hub vpc, use rfc-1918
     Type: String
-    Description: Summary route for spoke vpcs for example 10.0.0.0/8
-    Default: 10.0.0.0/8
+    Default: rfc-1918
+    AllowedValues:
+      - rfc-1918
+      - default
   splitroutes:
     Description: Share routing across both firewalls FW1 for Internet FW2 for east/west
     Type: String
@@ -96,32 +99,32 @@ Parameters:
     Type: String
     Default: tgw-08ba52ffc2d66b864
   SecurityVPCRouteTable:
-    Description: Transit Gateway Route Table to associate with the VM-Series (i.e. tgw-rtb-xxxxxx)
+    Description: Transit Gateway Route Table associated with security VPCs (i.e. tgw-rtb-xxxxxx)
     Type: String
     Default: tgw-rtb-04b38d4cf50530033
   SpokeVPCRouteTable:
-    Description: Transit Gateway Route Table to associate with spoke VPCs (i.e. tgw-rtb-xxxxxx)
+    Description: Transit Gateway Route Table associated with spoke VPCs (i.e. tgw-rtb-xxxxxx)
     Type: String
     Default: tgw-rtb-0806a3f895190d22a
 Mappings:
   CidrBlockMap:
     VpcCidrBlock:
-      CidrBlock: 172.16.254.0/24
+      CidrBlock: 192.168.254.0/24
     MgmtCidrBlock:
-      CidrBlockAz1: 172.16.254.0/28
-      CidrBlockAz2: 172.16.254.16/28
+      CidrBlockAz1: 192.168.254.0/28
+      CidrBlockAz2: 192.168.254.16/28
     UntrustCidrBlock:
-      CidrBlockAz1: 172.16.254.32/28
-      CidrBlockAz2: 172.16.254.48/28
+      CidrBlockAz1: 192.168.254.32/28
+      CidrBlockAz2: 192.168.254.48/28
     TrustCidrBlock:
-      CidrBlockAz1: 172.16.254.64/28
-      CidrBlockAz2: 172.16.254.80/28
+      CidrBlockAz1: 192.168.254.64/28
+      CidrBlockAz2: 192.168.254.80/28
     LambdaCidrBlock:
-      CidrBlockAz1: 172.16.254.96/28
-      CidrBlockAz2: 172.16.254.112/28
+      CidrBlockAz1: 192.168.254.96/28
+      CidrBlockAz2: 192.168.254.112/28
     TGWattachCidrBlock:
-      CidrBlockAz1: 172.16.254.128/28
-      CidrBlockAz2: 172.16.254.144/28
+      CidrBlockAz1: 192.168.254.128/28
+      CidrBlockAz2: 192.168.254.144/28
   Constants:
     S3URL:
       URL1: https://s3.amazonaws.com
@@ -169,7 +172,7 @@ Metadata:
       BootstrapBucket:
         default: S3 bucket containing the bootstrap folders and files
       VpcSummaryRoute:
-        default: Sumamry Route for spoke VPCs the template assumes a 10.0.0.0/8 block
+        default: This is a hub vpc, use rfc-1918
 Resources:
   LambdaENIPolicy:
     Type: AWS::IAM::Policy
@@ -389,7 +392,6 @@ Resources:
       TransitGatewayRouteTableId: !Ref 'SecurityVPCRouteTable'
     DependsOn:
       - SecurityVPCAttachment
-      - SecurityVPCRouteTable
   SpokeVPCPropagation:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
@@ -397,7 +399,7 @@ Resources:
       TransitGatewayRouteTableId: !Ref 'SpokeVPCRouteTable'
     DependsOn:
       - SecurityVPCAttachment
-      - SecurityVPCRouteTable
+
   MGMTSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -823,7 +825,25 @@ Resources:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref 'fromTGWRouteTable'
-      DestinationCidrBlock: !Ref VpcSummaryRoute
+      DestinationCidrBlock: '10.0.0.0/8'
+      NetworkInterfaceId: !Ref 'FW2TrustNetworkInterface'
+    DependsOn:
+      - FW2TrustNetworkInterface
+      - fromTGWRouteTable
+  FromTGW172NetsRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'fromTGWRouteTable'
+      DestinationCidrBlock: '172.16.0.0/12'
+      NetworkInterfaceId: !Ref 'FW2TrustNetworkInterface'
+    DependsOn:
+      - FW2TrustNetworkInterface
+      - fromTGWRouteTable
+  FromTGW192NetsRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'fromTGWRouteTable'
+      DestinationCidrBlock: '192.16.0.0/24'
       NetworkInterfaceId: !Ref 'FW2TrustNetworkInterface'
     DependsOn:
       - FW2TrustNetworkInterface
@@ -1028,7 +1048,7 @@ Resources:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt 'EIP3.AllocationId'
-      SubnetId: !Ref 'LambdaSubnetAz1'
+      SubnetId: !Ref 'UNTRUSTSubnet1'
       Tags:
         - Key: Name
           Value: !Join
@@ -1039,7 +1059,7 @@ Resources:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt 'EIP4.AllocationId'
-      SubnetId: !Ref 'LambdaSubnetAz2'
+      SubnetId: !Ref 'UNTRUSTSubnet2'
       Tags:
         - Key: Name
           Value: !Join
@@ -1086,6 +1106,8 @@ Resources:
       - FW1UntrustNetworkInterface
       - FW1TrustNetworkInterface
       - associateEIP1
+      - NATGw2
+      - NATGw1
   FW2Instance:
     Type: AWS::EC2::Instance
     Properties:
@@ -1127,6 +1149,8 @@ Resources:
       - FW2TrustNetworkInterface
       - FW1Instance
       - associateEIP2
+      - NATGw2
+      - NATGw1
   InitFWStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -1230,6 +1254,14 @@ Resources:
       - FW2Instance
     Properties:
       ServiceToken: !GetAtt 'TransitGatewayInitialiseLambda.Arn'
+      routes_to_add:
+        Ref: "VpcSummaryRoute"
+      route_tables:
+        - Ref: "MGMTRouteTable1"
+        - Ref: "MGMTRouteTable2"
+        - Ref: "toTGWRouteTable"
+        - Ref: "LambdaRouteTable1"
+        - Ref: "LambdaRouteTable2"
   TransitGatewayInitialiseLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -1243,11 +1275,9 @@ Resources:
         S3Key: !Ref 'LambdaZipFile'
       Environment:
         Variables:
-          toTGWRouteTableId: !Ref 'toTGWRouteTable'
           transitGatewayid: !Ref 'TGWID'
           region: !Ref 'AWS::Region'
           InitFWStateMachine: !Ref 'InitFWStateMachine'
-          VpcSummaryRoute: !Ref 'VpcSummaryRoute'
       Runtime: python3.6
       Timeout: 150
     DependsOn:
