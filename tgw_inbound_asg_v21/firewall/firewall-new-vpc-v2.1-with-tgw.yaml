@@ -27,16 +27,19 @@ Parameters:
     Type: String
     Description: API Key associated to username/password of the Panorama.
     NoEcho: 'true'
+    Default: LUFRPT1Zd2pYUGpkMUNrVEZlb3hROEQyUm95dXNGRkU9N0d4RGpTN2VZaVZYMVVoS253U0p6dlk3MkM0SDFySEh2UUR4Y3hzK2g3ST0=
   PanoramaAdminUser:
     Type: String
     Description: Enter the admin username for the Panorama instance
     MinLength: '3'
     MaxLength: '63'
-  S3BucketName:
+    Default: pandemo
+  BootstrapS3Bucket:
     Type: String
     Description: Enter the name of the Bootstrap S3 bucket for the VM-Series firewall
     MinLength: '3'
     MaxLength: '63'
+    Default: asgv21-justin
   PanFwAmiId:
     Type: AWS::EC2::Image::Id
     Description: 'Link to Ami Id lookup table: https://www.paloaltonetworks.com/documentation/global/compatibility-matrix/vm-series-firewalls/aws-cft-amazon-machine-images-ami-list'
@@ -71,7 +74,7 @@ Parameters:
     Type: String
     Description: VM-Series firewall Lambda/Scripts/CFT template S3 Bucket or your
       own in the same region
-    Default: panw-aws-autoscale-v21
+    Default: asgv21-justin
     MinLength: '3'
     MaxLength: '63'
   ELBType:
@@ -84,19 +87,20 @@ Parameters:
       template
   TGWID:
     Type: String
-    Default: tgw-
+    Default: tgw-08ba52ffc2d66b864
     Description: Transit Gateway resource ID (i.e. tgw-xxxxxx)
     AllowedPattern: .+
+
   AssociatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-
-    Description: Transit Gateway Route Table to associate with the VM-Series VPC attachment
+    Default: tgw-rtb-04b38d4cf50530033
+    Description: Transit Gateway Route Table associated with security VPCs
       (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
   PropagatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-
-    Description: Transit Gateway route table resource ID to propagate the VM-Series
+    Default: tgw-rtb-0806a3f895190d22a
+    Description: Transit Gateway Route Table associated with spoke VPCs
       VPC attachment (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
   Debug:
@@ -122,37 +126,31 @@ Mappings:
       Key: panw-aws.zip
   CidrBlockMap:
     VpcCidrBlock:
-      CidrBlock: 192.168.0.0/16
+      CidrBlock: 192.168.0.0/20
     MgmtCidrBlock:
-      CidrBlockAz1: 192.168.0.0/24
-      CidrBlockAz2: 192.168.10.0/24
-      CidrBlockAz3: 192.168.20.0/24
-      CidrBlockAz4: 192.168.30.0/24
+      CidrBlockAz1: 192.168.0.0/28
+      CidrBlockAz2: 192.168.0.16/28
+
     UntrustCidrBlock:
-      CidrBlockAz1: 192.168.1.0/24
-      CidrBlockAz2: 192.168.11.0/24
-      CidrBlockAz3: 192.168.21.0/24
-      CidrBlockAz4: 192.168.31.0/24
+      CidrBlockAz1: 192.168.0.32/28
+      CidrBlockAz2: 192.168.0.48/28
+
     TrustCidrBlock:
-      CidrBlockAz1: 192.168.2.0/24
-      CidrBlockAz2: 192.168.12.0/24
-      CidrBlockAz3: 192.168.22.0/24
-      CidrBlockAz4: 192.168.32.0/24
+      CidrBlockAz1: 192.168.0.64/28
+      CidrBlockAz2: 192.168.0.80/28
+
     TGWCidrBlock:
-      CidrBlockAz1: 192.168.3.0/28
-      CidrBlockAz2: 192.168.3.16/28
-      CidrBlockAz3: 192.168.3.32/28
-      CidrBlockAz4: 192.168.48.0/28
+      CidrBlockAz1: 192.168.0.96/28
+      CidrBlockAz2: 192.168.0.112/28
+
     NatGwCidrBlock:
-      CidrBlockAz1: 192.168.100.0/24
-      CidrBlockAz2: 192.168.101.0/24
-      CidrBlockAz3: 192.168.102.0/24
-      CidrBlockAz4: 192.168.103.0/24
+      CidrBlockAz1: 192.168.0.128/28
+      CidrBlockAz2: 192.168.0.144/28
+
     LambdaCidrBlock:
-      CidrBlockAz1: 192.168.200.0/24
-      CidrBlockAz2: 192.168.201.0/24
-      CidrBlockAz3: 192.168.202.0/24
-      CidrBlockAz4: 192.168.203.0/24
+      CidrBlockAz1: 192.168.0.160/28
+      CidrBlockAz2: 192.168.0.176/28
+
   FWInstanceTypeMap:
     TypeM4:
       M4xlarge: m4.xlarge
@@ -194,22 +192,7 @@ Conditions:
       - BucketRegionMap
       - LambdaRegion
       - DefaultRegion
-  CreateSubnet2: !Equals
-    - !Ref 'NumberOfAZs'
-    - '2'
-  CreateSubnet3: !Equals
-    - !Ref 'NumberOfAZs'
-    - '3'
-  CreateSubnet3more: !Or
-    - !Equals
-      - !Ref 'NumberOfAZs'
-      - '3'
-    - !Equals
-      - !Ref 'NumberOfAZs'
-      - '4'
-  CreateSubnet4: !Equals
-    - !Ref 'NumberOfAZs'
-    - '4'
+
   CreateELBTypeApp: !Equals
     - !Ref 'ELBType'
     - application
@@ -236,7 +219,7 @@ Metadata:
       - Label:
           default: S3 Bucket details
         Parameters:
-          - S3BucketName
+          - BootstrapS3Bucket
           - LambdaS3Bucket
       - Label:
           default: VM-Series API Key and Panorama username
@@ -261,7 +244,7 @@ Metadata:
         default: 'Key pair:'
       SSHLocation:
         default: 'SSH From:'
-      S3BucketName:
+      BootstrapS3Bucket:
         default: Bootstrap bucket for VM-Series firewalls
       LambdaS3Bucket:
         default: 'S3 Bucket Name for Lambda Code:'
@@ -297,7 +280,7 @@ Resources:
         - python3.6
         - python3.7
       Content:
-        S3Bucket: !Ref 'S3BucketName'
+        S3Bucket: !Ref 'BootstrapS3Bucket'
         S3Key: layer.zip
       Description: Autoscale Layer
       LayerName: as-layer
@@ -364,56 +347,7 @@ Resources:
               - LambdaSubnetAz2
     DependsOn:
       - VPC
-  LambdaSubnetAz3:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '2'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - LambdaCidrBlock
-        - CidrBlockAz3
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: LambdaFunction
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - LambdaSubnetAz3
-    DependsOn:
-      - VPC
-  LambdaSubnetAz4:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet4
-    Properties:
-      AvailabilityZone: !Select
-        - '3'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - LambdaCidrBlock
-        - CidrBlockAz4
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: LambdaFunction
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - LambdaSubnetAz4
-    DependsOn:
-      - VPC
+
   LambdaRouteTableAz1:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -442,36 +376,7 @@ Resources:
               - LambdaRouteTableAz2
     DependsOn:
       - VPC
-  LambdaRouteTableAz3:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet3more
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - LambdaRouteTableAz3
-    DependsOn:
-      - VPC
-  LambdaRouteTableAz4:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet4
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - LambdaRouteTableAz4
-    DependsOn:
-      - VPC
+
   NATGWSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -520,56 +425,7 @@ Resources:
               - NATGWSubnetAz2
     DependsOn:
       - VPC
-  NATGWSubnetAz3:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '2'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - NatGwCidrBlock
-        - CidrBlockAz3
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: NATGW
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - NATGWSubnetAz3
-    DependsOn:
-      - VPC
-  NATGWSubnetAz4:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet4
-    Properties:
-      AvailabilityZone: !Select
-        - '3'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - NatGwCidrBlock
-        - CidrBlockAz4
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: NATGW
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - NATGWSubnetAz4
-    DependsOn:
-      - VPC
+
   EIP1:
     Type: AWS::EC2::EIP
     Properties:
@@ -586,24 +442,7 @@ Resources:
       - VPC
       - GatewayToInternet
       - InternetGateway
-  EIP3:
-    Type: AWS::EC2::EIP
-    Condition: CreateSubnet3more
-    Properties:
-      Domain: VPC
-    DependsOn:
-      - VPC
-      - GatewayToInternet
-      - InternetGateway
-  EIP4:
-    Type: AWS::EC2::EIP
-    Condition: CreateSubnet4
-    Properties:
-      Domain: VPC
-    DependsOn:
-      - VPC
-      - GatewayToInternet
-      - InternetGateway
+
   NAT1:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -624,28 +463,7 @@ Resources:
       - EIP2
       - NATGWSubnetAz2
       - GatewayToInternet
-  NAT3:
-    Type: AWS::EC2::NatGateway
-    Condition: CreateSubnet3more
-    Properties:
-      AllocationId: !GetAtt 'EIP3.AllocationId'
-      SubnetId: !Ref 'NATGWSubnetAz3'
-    DependsOn:
-      - VPC
-      - EIP3
-      - NATGWSubnetAz3
-      - GatewayToInternet
-  NAT4:
-    Type: AWS::EC2::NatGateway
-    Condition: CreateSubnet4
-    Properties:
-      AllocationId: !GetAtt 'EIP4.AllocationId'
-      SubnetId: !Ref 'NATGWSubnetAz4'
-    DependsOn:
-      - VPC
-      - EIP4
-      - NATGWSubnetAz4
-      - GatewayToInternet
+
   TGWSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -690,52 +508,7 @@ Resources:
             - '-'
             - - !Ref 'AWS::StackName'
               - tgw-az2
-  TGWSubnetAz3:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '0'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: false
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - TGWCidrBlock
-        - CidrBlockAz3
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: TGW
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - tgw-az3
-  TGWSubnetAz4:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '1'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: false
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - TGWCidrBlock
-        - CidrBlockAz4
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: TGW
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - tgw-az4
+
   TGWAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
@@ -808,56 +581,7 @@ Resources:
               - MGMTSubnetAz2
     DependsOn:
       - VPC
-  MGMTSubnetAz3:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '2'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - MgmtCidrBlock
-        - CidrBlockAz3
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: MGMT
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - MGMTSubnetAz3
-    DependsOn:
-      - VPC
-  MGMTSubnetAz4:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet4
-    Properties:
-      AvailabilityZone: !Select
-        - '3'
-        - !Ref 'VpcAzs'
-      MapPublicIpOnLaunch: true
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - MgmtCidrBlock
-        - CidrBlockAz4
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: MGMT
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - MGMTSubnetAz4
-    DependsOn:
-      - VPC
+
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -906,36 +630,7 @@ Resources:
               - NATGWRouteTableAz2
     DependsOn:
       - VPC
-  NATGWRouteTableAz3:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet3more
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - NATGWRouteTableAz3
-    DependsOn:
-      - VPC
-  NATGWRouteTableAz4:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet4
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - NATGWRouteTableAz4
-    DependsOn:
-      - VPC
+
   NATGWRoute1:
     Type: AWS::EC2::Route
     Properties:
@@ -954,26 +649,7 @@ Resources:
     DependsOn:
       - NATGWRouteTableAz2
       - GatewayToInternet
-  NATGWRoute3:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet3more
-    Properties:
-      RouteTableId: !Ref 'NATGWRouteTableAz3'
-      DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref 'InternetGateway'
-    DependsOn:
-      - NATGWRouteTableAz3
-      - GatewayToInternet
-  NATGWRoute4:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet4
-    Properties:
-      RouteTableId: !Ref 'NATGWRouteTableAz4'
-      DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref 'InternetGateway'
-    DependsOn:
-      - NATGWRouteTableAz4
-      - GatewayToInternet
+
   MGMTRouteTableAz1:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -1002,36 +678,7 @@ Resources:
               - MGMTRouteTableAz2
     DependsOn:
       - VPC
-  MGMTRouteTableAz3:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet3more
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - MGMTRouteTableAz3
-    DependsOn:
-      - VPC
-  MGMTRouteTableAz4:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet4
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - MGMTRouteTableAz4
-    DependsOn:
-      - VPC
+
   LambdaRoute1:
     Type: AWS::EC2::Route
     Properties:
@@ -1048,24 +695,7 @@ Resources:
       NatGatewayId: !Ref 'NAT2'
     DependsOn:
       - NAT2
-  LambdaRoute3:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet3more
-    Properties:
-      RouteTableId: !Ref 'LambdaRouteTableAz3'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT3'
-    DependsOn:
-      - NAT3
-  LambdaRoute4:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet4
-    Properties:
-      RouteTableId: !Ref 'LambdaRouteTableAz4'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT4'
-    DependsOn:
-      - NAT4
+
   MGMTRouteNAT1:
     Type: AWS::EC2::Route
     Properties:
@@ -1082,24 +712,7 @@ Resources:
       NatGatewayId: !Ref 'NAT2'
     DependsOn:
       - NAT2
-  MGMTRouteNAT3:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet3more
-    Properties:
-      RouteTableId: !Ref 'MGMTRouteTableAz3'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT3'
-    DependsOn:
-      - NAT3
-  MGMTRouteNAT4:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet4
-    Properties:
-      RouteTableId: !Ref 'MGMTRouteTableAz4'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT4'
-    DependsOn:
-      - NAT4
+
   LambdaSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -1116,24 +729,7 @@ Resources:
     DependsOn:
       - LambdaRouteTableAz2
       - LambdaSubnetAz2
-  LambdaSubnetRouteTableAssociation3:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet3more
-    Properties:
-      SubnetId: !Ref 'LambdaSubnetAz3'
-      RouteTableId: !Ref 'LambdaRouteTableAz3'
-    DependsOn:
-      - LambdaRouteTableAz3
-      - LambdaSubnetAz3
-  LambdaSubnetRouteTableAssociation4:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet4
-    Properties:
-      SubnetId: !Ref 'LambdaSubnetAz4'
-      RouteTableId: !Ref 'LambdaRouteTableAz4'
-    DependsOn:
-      - LambdaRouteTableAz4
-      - LambdaSubnetAz4
+
   NAT1SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -1150,24 +746,7 @@ Resources:
     DependsOn:
       - NATGWRouteTableAz2
       - NATGWSubnetAz2
-  NAT3SubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet3more
-    Properties:
-      SubnetId: !Ref 'NATGWSubnetAz3'
-      RouteTableId: !Ref 'NATGWRouteTableAz3'
-    DependsOn:
-      - NATGWRouteTableAz3
-      - NATGWSubnetAz3
-  NAT4SubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet4
-    Properties:
-      SubnetId: !Ref 'NATGWSubnetAz4'
-      RouteTableId: !Ref 'NATGWRouteTableAz4'
-    DependsOn:
-      - NATGWRouteTableAz4
-      - NATGWSubnetAz4
+
   MGMTSubnetRouteTableAssociationNAT1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -1183,22 +762,7 @@ Resources:
       RouteTableId: !Ref 'MGMTRouteTableAz2'
     DependsOn:
       - MGMTSubnetAz2
-  MGMTSubnetRouteTableAssociationNAT3:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet3more
-    Properties:
-      SubnetId: !Ref 'MGMTSubnetAz3'
-      RouteTableId: !Ref 'MGMTRouteTableAz3'
-    DependsOn:
-      - MGMTSubnetAz3
-  MGMTSubnetRouteTableAssociationNAT4:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet4
-    Properties:
-      SubnetId: !Ref 'MGMTSubnetAz4'
-      RouteTableId: !Ref 'MGMTRouteTableAz4'
-    DependsOn:
-      - MGMTSubnetAz4
+
   UNTRUSTSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -1245,54 +809,7 @@ Resources:
               - UNTRUSTSubnet2
     DependsOn:
       - VPC
-  UNTRUSTSubnet3:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '2'
-        - !Ref 'VpcAzs'
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - UntrustCidrBlock
-        - CidrBlockAz3
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: UNTRUST
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - UNTRUSTSubnet3
-    DependsOn:
-      - VPC
-  UNTRUSTSubnet4:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet4
-    Properties:
-      AvailabilityZone: !Select
-        - '3'
-        - !Ref 'VpcAzs'
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - UntrustCidrBlock
-        - CidrBlockAz4
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: UNTRUST
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - UNTRUSTSubnet4
-    DependsOn:
-      - VPC
+
   UNTRUSTRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -1332,24 +849,7 @@ Resources:
     DependsOn:
       - UNTRUSTRoute
       - UNTRUSTSubnet2
-  UNTRUSTSubnetRouteTableAssociation3:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet3more
-    Properties:
-      SubnetId: !Ref 'UNTRUSTSubnet3'
-      RouteTableId: !Ref 'UNTRUSTRouteTable'
-    DependsOn:
-      - UNTRUSTRoute
-      - UNTRUSTSubnet3
-  UNTRUSTSubnetRouteTableAssociation4:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet4
-    Properties:
-      SubnetId: !Ref 'UNTRUSTSubnet4'
-      RouteTableId: !Ref 'UNTRUSTRouteTable'
-    DependsOn:
-      - UNTRUSTRoute
-      - UNTRUSTSubnet4
+
   TRUSTSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
@@ -1398,56 +898,7 @@ Resources:
     DependsOn:
       - VPC
       - InternetGateway
-  TRUSTSubnet3:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet3more
-    Properties:
-      AvailabilityZone: !Select
-        - '2'
-        - !Ref 'VpcAzs'
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - TrustCidrBlock
-        - CidrBlockAz3
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: TRUST
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - TRUSTSubnet3
-    DependsOn:
-      - VPC
-      - InternetGateway
-  TRUSTSubnet4:
-    Type: AWS::EC2::Subnet
-    Condition: CreateSubnet4
-    Properties:
-      AvailabilityZone: !Select
-        - '3'
-        - !Ref 'VpcAzs'
-      VpcId: !Ref 'VPC'
-      CidrBlock: !FindInMap
-        - CidrBlockMap
-        - TrustCidrBlock
-        - CidrBlockAz4
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: TRUST
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - TRUSTSubnet4
-    DependsOn:
-      - VPC
-      - InternetGateway
+
   TrustRouteTableAz1:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -1480,40 +931,7 @@ Resources:
               - TrustRouteTableAz2
     DependsOn:
       - VPC
-  TrustRouteTableAz3:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet3more
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: TRUST
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - TrustRouteTableAz3
-    DependsOn:
-      - VPC
-  TrustRouteTableAz4:
-    Type: AWS::EC2::RouteTable
-    Condition: CreateSubnet4
-    Properties:
-      VpcId: !Ref 'VPC'
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-        - Key: Network
-          Value: TRUST
-        - Key: Name
-          Value: !Join
-            - '-'
-            - - !Ref 'AWS::StackName'
-              - TrustRouteTableAz4
-    DependsOn:
-      - VPC
+
   TrustRouteNAT1:
     Type: AWS::EC2::Route
     Properties:
@@ -1530,24 +948,7 @@ Resources:
       NatGatewayId: !Ref 'NAT2'
     DependsOn:
       - NAT2
-  TrustRouteNAT3:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet3more
-    Properties:
-      RouteTableId: !Ref 'TrustRouteTableAz3'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT3'
-    DependsOn:
-      - NAT3
-  TrustRouteNAT4:
-    Type: AWS::EC2::Route
-    Condition: CreateSubnet4
-    Properties:
-      RouteTableId: !Ref 'TrustRouteTableAz4'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT4'
-    DependsOn:
-      - NAT4
+
   TRUSTSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -1562,22 +963,7 @@ Resources:
       RouteTableId: !Ref 'TrustRouteTableAz2'
     DependsOn:
       - TRUSTSubnet2
-  TRUSTSubnetRouteTableAssociation3:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet3more
-    Properties:
-      SubnetId: !Ref 'TRUSTSubnet3'
-      RouteTableId: !Ref 'TrustRouteTableAz3'
-    DependsOn:
-      - TRUSTSubnet3
-  TRUSTSubnetRouteTableAssociation4:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateSubnet4
-    Properties:
-      SubnetId: !Ref 'TRUSTSubnet4'
-      RouteTableId: !Ref 'TrustRouteTableAz4'
-    DependsOn:
-      - TRUSTSubnet4
+
   PublicLoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -1627,31 +1013,9 @@ Resources:
           - CreateELBTypeApp
           - !Ref 'PublicLoadBalancerSecurityGroup'
           - !Ref 'AWS::NoValue'
-      Subnets: !If
-        - CreateSubnet2
-        - !Split
-          - ':'
-          - !Join
-            - ':'
-            - - !Ref 'UNTRUSTSubnet1'
-              - !Ref 'UNTRUSTSubnet2'
-        - !If
-          - CreateSubnet3
-          - !Split
-            - ':'
-            - !Join
-              - ':'
-              - - !Ref 'UNTRUSTSubnet1'
-                - !Ref 'UNTRUSTSubnet2'
-                - !Ref 'UNTRUSTSubnet3'
-          - !Split
-            - ':'
-            - !Join
-              - ':'
-              - - !Ref 'UNTRUSTSubnet1'
-                - !Ref 'UNTRUSTSubnet2'
-                - !Ref 'UNTRUSTSubnet3'
-                - !Ref 'UNTRUSTSubnet4'
+      Subnets:
+        - !Ref 'UNTRUSTSubnet1'
+        - !Ref 'UNTRUSTSubnet2'
       Scheme: internet-facing
     DependsOn:
       - VPC
@@ -1687,7 +1051,7 @@ Resources:
       - VPC
   S3Endpoint:
     Type: AWS::EC2::VPCEndpoint
-    Condition: CreateSubnet2
+
     Properties:
       PolicyDocument:
         Version: '2012-10-17'
@@ -1698,14 +1062,14 @@ Resources:
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'S3BucketName'
+                - !Ref 'BootstrapS3Bucket'
           - Effect: Allow
             Principal: '*'
             Action: s3:GetObject
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref 'S3BucketName'
+                - !Ref 'BootstrapS3Bucket'
                 - /*
       RouteTableIds:
         - !Ref 'UNTRUSTRouteTable'
@@ -1715,66 +1079,7 @@ Resources:
           - !Ref 'AWS::Region'
           - .s3
       VpcId: !Ref 'VPC'
-  S3Endpoint3:
-    Type: AWS::EC2::VPCEndpoint
-    Condition: CreateSubnet3
-    Properties:
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: '*'
-            Action: s3:ListBucket
-            Resource: !Join
-              - ''
-              - - 'arn:aws:s3:::'
-                - !Ref 'S3BucketName'
-          - Effect: Allow
-            Principal: '*'
-            Action: s3:GetObject
-            Resource: !Join
-              - ''
-              - - 'arn:aws:s3:::'
-                - !Ref 'S3BucketName'
-                - /*
-      RouteTableIds:
-        - !Ref 'UNTRUSTRouteTable'
-      ServiceName: !Join
-        - ''
-        - - com.amazonaws.
-          - !Ref 'AWS::Region'
-          - .s3
-      VpcId: !Ref 'VPC'
-  S3Endpoint4:
-    Type: AWS::EC2::VPCEndpoint
-    Condition: CreateSubnet4
-    Properties:
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: '*'
-            Action: s3:ListBucket
-            Resource: !Join
-              - ''
-              - - 'arn:aws:s3:::'
-                - !Ref 'S3BucketName'
-          - Effect: Allow
-            Principal: '*'
-            Action: s3:GetObject
-            Resource: !Join
-              - ''
-              - - 'arn:aws:s3:::'
-                - !Ref 'S3BucketName'
-                - /*
-      RouteTableIds:
-        - !Ref 'UNTRUSTRouteTable'
-      ServiceName: !Join
-        - ''
-        - - com.amazonaws.
-          - !Ref 'AWS::Region'
-          - .s3
-      VpcId: !Ref 'VPC'
+
   FirewallBootstrapRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1796,13 +1101,13 @@ Resources:
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'S3BucketName'
+                    - !Ref 'BootstrapS3Bucket'
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'S3BucketName'
+                    - !Ref 'BootstrapS3Bucket'
                     - /*
               - Effect: Allow
                 Action:
@@ -1940,14 +1245,14 @@ Resources:
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'S3BucketName'
+                    - !Ref 'BootstrapS3Bucket'
                     - /*
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'S3BucketName'
+                    - !Ref 'BootstrapS3Bucket'
                     - /*
               - Effect: Allow
                 Action: s3:ListBucket
@@ -2133,31 +1438,10 @@ Resources:
       Runtime: python2.7
       Timeout: '300'
       VpcConfig:
-        SubnetIds: !If
-          - CreateSubnet2
-          - !Split
-            - ':'
-            - !Join
-              - ':'
-              - - !Ref 'LambdaSubnetAz1'
-                - !Ref 'LambdaSubnetAz2'
-          - !If
-            - CreateSubnet3
-            - !Split
-              - ':'
-              - !Join
-                - ':'
-                - - !Ref 'LambdaSubnetAz1'
-                  - !Ref 'LambdaSubnetAz2'
-                  - !Ref 'LambdaSubnetAz3'
-            - !Split
-              - ':'
-              - !Join
-                - ':'
-                - - !Ref 'LambdaSubnetAz1'
-                  - !Ref 'LambdaSubnetAz2'
-                  - !Ref 'LambdaSubnetAz3'
-                  - !Ref 'LambdaSubnetAz4'
+        SubnetIds:
+          - !Ref 'LambdaSubnetAz1'
+          - !Ref 'LambdaSubnetAz2'
+
         SecurityGroupIds:
           - !Ref 'VPCSecurityGroup'
     DependsOn:
@@ -2171,6 +1455,8 @@ Resources:
       - "MGMTRouteTableAz2"
       - "TrustRouteTableAz1"
       - "TrustRouteTableAz1"
+      - "LambdaRouteTableAz1"
+      - "LambdaRouteTableAz2"
     Properties:
       ServiceToken: !GetAtt 'TransitGatewayInitialiseLambda.Arn'
       routes_to_add:
@@ -2180,6 +1466,8 @@ Resources:
         - Ref: "MGMTRouteTableAz2"
         - Ref: "TrustRouteTableAz1"
         - Ref: "TrustRouteTableAz2"
+        - Ref: "LambdaRouteTableAz1"
+        - Ref: "LambdaRouteTableAz2"
   TransitGatewayInitialiseLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -2239,14 +1527,14 @@ Resources:
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'S3BucketName'
+                    - !Ref 'BootstrapS3Bucket'
                     - /*
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Join
                   - ''
                   - - 'arn:aws:s3:::'
-                    - !Ref 'S3BucketName'
+                    - !Ref 'BootstrapS3Bucket'
                     - /*
               - Effect: Allow
                 Action:
@@ -2487,82 +1775,22 @@ Resources:
       StackName: !Ref 'AWS::StackName'
       Region: !Ref 'AWS::Region'
       VpcId: !Ref 'VPC'
-      SubnetIDMgmt: !If
-        - CreateSubnet2
-        - !Join
-          - ','
-          - - !Ref 'MGMTSubnetAz1'
-            - !Ref 'MGMTSubnetAz2'
-        - !If
-          - CreateSubnet3
-          - !Join
-            - ','
-            - - !Ref 'MGMTSubnetAz1'
-              - !Ref 'MGMTSubnetAz2'
-              - !Ref 'MGMTSubnetAz3'
-          - !Join
-            - ','
-            - - !Ref 'MGMTSubnetAz1'
-              - !Ref 'MGMTSubnetAz2'
-              - !Ref 'MGMTSubnetAz3'
-              - !Ref 'MGMTSubnetAz4'
-      SubnetIDUntrust: !If
-        - CreateSubnet2
-        - !Join
-          - ','
-          - - !Ref 'UNTRUSTSubnet1'
-            - !Ref 'UNTRUSTSubnet2'
-        - !If
-          - CreateSubnet3
-          - !Join
-            - ','
-            - - !Ref 'UNTRUSTSubnet1'
-              - !Ref 'UNTRUSTSubnet2'
-              - !Ref 'UNTRUSTSubnet3'
-          - !Join
-            - ','
-            - - !Ref 'UNTRUSTSubnet1'
-              - !Ref 'UNTRUSTSubnet2'
-              - !Ref 'UNTRUSTSubnet3'
-              - !Ref 'UNTRUSTSubnet4'
-      SubnetIDTrust: !If
-        - CreateSubnet2
-        - !Join
-          - ','
-          - - !Ref 'TRUSTSubnet1'
-            - !Ref 'TRUSTSubnet2'
-        - !If
-          - CreateSubnet3
-          - !Join
-            - ','
-            - - !Ref 'TRUSTSubnet1'
-              - !Ref 'TRUSTSubnet2'
-              - !Ref 'TRUSTSubnet3'
-          - !Join
-            - ','
-            - - !Ref 'TRUSTSubnet1'
-              - !Ref 'TRUSTSubnet2'
-              - !Ref 'TRUSTSubnet3'
-              - !Ref 'TRUSTSubnet4'
-      RouteTableIDTrust: !If
-        - CreateSubnet2
-        - !Join
-          - ','
-          - - !Ref 'TrustRouteTableAz1'
-            - !Ref 'TrustRouteTableAz2'
-        - !If
-          - CreateSubnet3
-          - !Join
-            - ','
-            - - !Ref 'TrustRouteTableAz1'
-              - !Ref 'TrustRouteTableAz2'
-              - !Ref 'TrustRouteTableAz3'
-          - !Join
-            - ','
-            - - !Ref 'TrustRouteTableAz1'
-              - !Ref 'TrustRouteTableAz2'
-              - !Ref 'TrustRouteTableAz3'
-              - !Ref 'TrustRouteTableAz4'
+      SubnetIDMgmt:
+        - !Ref 'MGMTSubnetAz1'
+        - !Ref 'MGMTSubnetAz2'
+
+      SubnetIDUntrust:
+        - !Ref 'UNTRUSTSubnet1'
+        - !Ref 'UNTRUSTSubnet2'
+
+      SubnetIDTrust:
+        - !Ref 'TRUSTSubnet1'
+        - !Ref 'TRUSTSubnet2'
+
+      RouteTableIDTrust:
+        - !Ref 'TrustRouteTableAz1'
+        - !Ref 'TrustRouteTableAz2'
+
       MgmtSecurityGroup: !Ref 'MgmtSecurityGroup'
       UntrustSecurityGroup: !Ref 'UntrustSecurityGroup'
       TrustSecurityGroup: !Ref 'TrustSecurityGroup'
@@ -2614,8 +1842,8 @@ Resources:
       LambdaExecutionRole: !Ref 'LambdaExecutionRole'
       ASGNotifierRole: !GetAtt 'ASGNotifierRole.Arn'
       ASGNotifierRolePolicy: !Ref 'ASGNotifierRolePolicy'
-      S3BucketName: !Ref 'S3BucketName'
       LambdaS3Bucket: !Ref 'LambdaS3Bucket'
+      BootstrapS3Bucket: !Ref 'BootstrapS3Bucket'
       PanS3KeyTpl: !FindInMap
         - KeyMap
         - Key
@@ -2623,44 +1851,19 @@ Resources:
       KeyPANWFirewall: !Ref 'KeyPANWFirewall'
       KeyPANWPanorama: !Ref 'KeyPANWPanorama'
       PanoramaAdminUser: !Ref 'PanoramaAdminUser'
-      SubnetIDNATGW: !If
-        - CreateSubnet2
+      SubnetIDNATGW:
         - !Join
           - ','
           - - !Ref 'NATGWSubnetAz1'
             - !Ref 'NATGWSubnetAz2'
-        - !If
-          - CreateSubnet3
-          - !Join
-            - ','
-            - - !Ref 'NATGWSubnetAz1'
-              - !Ref 'NATGWSubnetAz2'
-              - !Ref 'NATGWSubnetAz3'
-          - !Join
-            - ','
-            - - !Ref 'NATGWSubnetAz1'
-              - !Ref 'NATGWSubnetAz2'
-              - !Ref 'NATGWSubnetAz3'
-              - !Ref 'NATGWSubnetAz4'
-      SubnetIDLambda: !If
-        - CreateSubnet2
+
+      SubnetIDLambda:
         - !Join
           - ','
           - - !Ref 'LambdaSubnetAz1'
             - !Ref 'LambdaSubnetAz2'
-        - !If
-          - CreateSubnet3
-          - !Join
-            - ','
-            - - !Ref 'LambdaSubnetAz1'
-              - !Ref 'LambdaSubnetAz2'
-              - !Ref 'LambdaSubnetAz3'
-          - !Join
-            - ','
-            - - !Ref 'LambdaSubnetAz1'
-              - !Ref 'LambdaSubnetAz2'
-              - !Ref 'LambdaSubnetAz3'
-              - !Ref 'LambdaSubnetAz4'
+
+
       FwInit: !Ref 'FwInit'
       InitLambda: !Ref 'InitLambda'
       LambdaENIQueue: !Ref 'LambdaENIQueue'
@@ -2704,7 +1907,7 @@ Resources:
           Fn::Join:
             - ''
             - - vmseries-bootstrap-aws-s3bucket=
-              - !Ref 'S3BucketName'
+              - !Ref 'BootstrapS3Bucket'
 Outputs:
   ScalingParameter:
     Value: !FindInMap
@@ -2712,54 +1915,6 @@ Outputs:
       - ScalingParam
       - CPU
     Description: Scaling Parameter you have selected
-  TrustSubnets:
-    Value: !If
-      - CreateSubnet2
-      - !Join
-        - ','
-        - - !FindInMap
-            - CidrBlockMap
-            - TrustCidrBlock
-            - CidrBlockAz1
-          - !FindInMap
-            - CidrBlockMap
-            - TrustCidrBlock
-            - CidrBlockAz2
-      - !If
-        - CreateSubnet3
-        - !Join
-          - ','
-          - - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz1
-            - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz2
-            - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz3
-        - !Join
-          - ','
-          - - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz1
-            - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz2
-            - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz3
-            - !FindInMap
-              - CidrBlockMap
-              - TrustCidrBlock
-              - CidrBlockAz4
-    Description: Trust subnets in the VPC
   ELBName:
     Value: !Ref 'ELBName'
     Description: Elastic Application Load Balancer (Public) name
@@ -2772,11 +1927,11 @@ Outputs:
   SSHLocation:
     Value: !Ref 'SSHLocation'
     Description: Make sure you SSH from this IP address
-  S3BucketName:
+  BootstrapS3Bucket:
     Value: !Join
       - ''
       - - 'arn:aws:s3:::'
-        - !Ref 'S3BucketName'
+        - !Ref 'BootstrapS3Bucket'
     Description: Your Bootstrap bucket being used for this deployment
   LambdaS3Bucket:
     Value: !Join
