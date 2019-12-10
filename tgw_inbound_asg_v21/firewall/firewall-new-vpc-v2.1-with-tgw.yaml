@@ -532,7 +532,7 @@ Resources:
     Properties:
       TransitGatewayAttachmentId: !Ref 'TGWAttachment'
       TransitGatewayRouteTableId: !Ref 'AssociatedTGWRouteTableID'
-  PropagateTGWRouteTableID:
+  PropagateTGWRouteTableID3:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
       TransitGatewayAttachmentId: !Ref 'TGWAttachment'
