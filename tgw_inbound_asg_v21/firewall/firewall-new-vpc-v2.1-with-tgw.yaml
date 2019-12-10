@@ -87,19 +87,23 @@ Parameters:
       template
   TGWID:
     Type: String
-    Default: tgw-08ba52ffc2d66b864
+    Default: tgw-08baxxxxx
     Description: Transit Gateway resource ID (i.e. tgw-xxxxxx)
     AllowedPattern: .+
+  PanoramaVPCAttachmentId:
 
+    Type: String
+    Default: tgw-attach-xxx
+    Description: AttachmentId of Mgt VPC which contains panorama
   AssociatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-04b38d4cf50530033
+    Default: tgw-rtb-04bxxxx
     Description: Transit Gateway Route Table associated with security VPCs
       (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
   PropagatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-0806a3f895190d22a
+    Default: tgw-rtb-080xxxx
     Description: Transit Gateway Route Table associated with spoke VPCs
       VPC attachment (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
@@ -533,6 +537,11 @@ Resources:
     Properties:
       TransitGatewayAttachmentId: !Ref 'TGWAttachment'
       TransitGatewayRouteTableId: !Ref 'PropagatedTGWRouteTableID'
+  PropagateTGWRouteTableID2:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties:
+      TransitGatewayAttachmentId: !Ref 'PanoramaVPCAttachmentId'
+      TransitGatewayRouteTableId: !Ref 'AssociatedTGWRouteTableID'
   MGMTSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
