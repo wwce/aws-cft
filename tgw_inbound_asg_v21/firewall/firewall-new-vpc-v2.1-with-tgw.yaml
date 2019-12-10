@@ -932,22 +932,7 @@ Resources:
     DependsOn:
       - VPC
 
-  TrustRouteNAT1:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref 'TrustRouteTableAz1'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT1'
-    DependsOn:
-      - NAT1
-  TrustRouteNAT2:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref 'TrustRouteTableAz2'
-      DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref 'NAT2'
-    DependsOn:
-      - NAT2
+
 
   TRUSTSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
