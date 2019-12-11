@@ -101,9 +101,9 @@ Parameters:
     Description: Transit Gateway Route Table associated with security VPCs
       (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
-  MgtVPCTGWRouteTableID:
+  PropagatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-080xxxx
+    Default: tgw-rtb-0806a3f895190d22a
     Description: Transit Gateway Route Table associated with spoke VPCs
       VPC attachment (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
@@ -239,8 +239,8 @@ Metadata:
           default: Transit Gateway Parameters
         Parameters:
           - TGWID
-          - SecHubVPCTGWRouteTableID
-          - MgtVPCTGWRouteTableID
+          - AssociatedTGWRouteTableID
+          - PropagatedTGWRouteTableID
     ParameterLabels:
       PanFwAmiId:
         default: 'AMIId of PANFW Image:'
@@ -268,9 +268,9 @@ Metadata:
         default: 'Subnet ID of Trust Interface:'
       TGWID:
         default: 'Transit Gateway ID:'
-      SecHubVPCTGWRouteTableID:
+      AssociatedTGWRouteTableID:
         default: Transit Gateway Route Table - TO ASSOCIATE
-      MgtVPCTGWRouteTableID:
+      PropagatedTGWRouteTableID:
         default: Transit Gateway Route Table - TO PROPAGATE
       Debug:
         default: 'Enable Debug Log:'
@@ -531,12 +531,13 @@ Resources:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     Properties:
       TransitGatewayAttachmentId: !Ref 'TGWAttachment'
-      TransitGatewayRouteTableId: !Ref 'SecHubVPCTGWRouteTableID'
+      TransitGatewayRouteTableId: !Ref 'AssociatedTGWRouteTableID'
+
   PropagateTGWRouteTableID2:
     Type: AWS::EC2::TransitGatewayRouteTablePropagation
     Properties:
       TransitGatewayAttachmentId: !Ref 'PanoramaVPCAttachmentId'
-      TransitGatewayRouteTableId: !Ref 'SecHubVPCTGWRouteTableID'
+      TransitGatewayRouteTableId: !Ref 'AssociatedTGWRouteTableID'
   MGMTSubnetAz1:
     Type: AWS::EC2::Subnet
     Properties:
