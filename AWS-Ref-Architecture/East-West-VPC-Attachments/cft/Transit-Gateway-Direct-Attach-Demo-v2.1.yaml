@@ -61,6 +61,10 @@ Parameters:
       - Bundle2
       - BYOL
     Description: Enter the license type for the Firewall
+  PanFwAmiId:
+    Type: AWS::EC2::Image::Id
+    Default: 'ami-edb0fe94'
+    Description: 'AMI List: https://www.paloaltonetworks.com/documentation/global/compatibility-matrix/vm-series-firewalls/aws-cft-amazon-machine-images-ami-list'
   RouteFailover:
     Description: Restore original route table entries when device recovers
     Type: String
@@ -1451,10 +1455,7 @@ Resources:
       IamInstanceProfile: !Ref 'BootstrapInstanceProfile'
       InstanceInitiatedShutdownBehavior: stop
       EbsOptimized: true
-      ImageId: !FindInMap
-        - AWSRegionArch2AMI
-        - !Ref 'AWS::Region'
-        - !Ref 'FWLicenseType'
+      ImageId: !Ref 'PanFwAmiId'
       InstanceType: !Ref 'FWInstanceType'
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
@@ -1494,10 +1495,7 @@ Resources:
       IamInstanceProfile: !Ref 'BootstrapInstanceProfile'
       InstanceInitiatedShutdownBehavior: stop
       EbsOptimized: true
-      ImageId: !FindInMap
-        - AWSRegionArch2AMI
-        - !Ref 'AWS::Region'
-        - !Ref 'FWLicenseType'
+      ImageId: !Ref 'PanFwAmiId'
       InstanceType: !Ref 'FWInstanceType'
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
