@@ -267,6 +267,7 @@ Metadata:
         Parameters:
           - BootstrapBucket
           - apikey
+          - PanFwAmiId
       - Label:
           default: Autoscale Configuration
         Parameters:
