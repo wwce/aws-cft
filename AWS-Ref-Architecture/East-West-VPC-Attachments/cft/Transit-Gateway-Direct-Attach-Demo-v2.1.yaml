@@ -174,63 +174,7 @@ Mappings:
       AMI: ami-b3d965d7
     ap-south-1:
       AMI: ami-c2ee9dad
-  AWSRegionArch2AMI:
-    us-east-1:
-      Bundle1: ami-ce01c0b3
-      Bundle2: ami-bffd3cc2
-      BYOL: ami-a2fa3bdf
-    us-east-2:
-      Bundle1: ami-10f3c575
-      Bundle2: ami-9ef3c5fb
-      BYOL: ami-11e1d774
-    us-west-1:
-      Bundle1: ami-235b4f43
-      Bundle2: ami-854551e5
-      BYOL: ami-a95b4fc9
-    us-west-2:
-      Bundle1: ami-8a22b3f2
-      Bundle2: ami-9a29b8e2
-      BYOL: ami-d424b5ac
-    ca-central-1:
-      Bundle1: ami-dd0582b9
-      Bundle2: ami-57048333
-      BYOL: ami-64038400
-    eu-central-1:
-      Bundle1: ami-1bbdd574
-      Bundle2: ami-1ebdd571
-      BYOL: ami-55bfd73a
-    eu-west-1:
-      Bundle1: ami-edb0fe94
-      Bundle2: ami-1fb1ff66
-      BYOL: ami-62b5fb1b
-    eu-west-2:
-      Bundle1: ami-f46a8d93
-      Bundle2: ami-c4688fa3
-      BYOL: ami-876a8de0
-    ap-southeast-1:
-      Bundle1: ami-55bced29
-      Bundle2: ami-36bdec4a
-      BYOL: ami-27baeb5b
-    ap-southeast-2:
-      Bundle1: ami-aed112cc
-      Bundle2: ami-add013cf
-      BYOL: ami-00d61562
-    ap-northeast-2:
-      Bundle1: ami-4eb81420
-      Bundle2: ami-a8bf13c6
-      BYOL: ami-49bd1127
-    ap-northeast-1:
-      Bundle1: ami-39662d5f
-      Bundle2: ami-75652e13
-      BYOL: ami-57662d31
-    ap-south-1:
-      Bundle1: ami-d385dcbc
-      Bundle2: ami-ee80d981
-      BYOL: ami-e780d988
-    sa-east-1:
-      Bundle1: ami-9e0154f2
-      Bundle2: ami-d80653b4
-      BYOL: ami-9c0154f0
+
   Constants:
     S3URL:
       URL1: https://s3.amazonaws.com
