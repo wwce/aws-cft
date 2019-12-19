@@ -52,7 +52,7 @@ Parameters:
       - m4.xlarge
       - m4.2xlarge
       - m4.4xlarge
-    Description: Enter the instance type and size for the VM-Series firewall
+    Description: Use c5/m5 for 9.x images
   FWLicenseType:
     Type: String
     Default: Bundle1
