@@ -63,7 +63,6 @@ Parameters:
     Description: Enter the license type for the Firewall
   PanFwAmiId:
     Type: AWS::EC2::Image::Id
-    Default: 'ami-edb0fe94'
     Description: 'AMI List: https://www.paloaltonetworks.com/documentation/global/compatibility-matrix/vm-series-firewalls/aws-cft-amazon-machine-images-ami-list'
   RouteFailover:
     Description: Restore original route table entries when device recovers
