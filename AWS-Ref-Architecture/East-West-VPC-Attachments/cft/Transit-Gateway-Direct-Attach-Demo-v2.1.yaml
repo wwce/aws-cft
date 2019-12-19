@@ -40,15 +40,15 @@ Parameters:
     Type: String
     Default: m4.xlarge
     AllowedValues:
-      - c3.xlarge
-      - c3.2xlarge
-      - c3.4xlarge
+      - c5.xlarge
+      - c5.2xlarge
       - c4.xlarge
       - c4.2xlarge
       - c4.4xlarge
       - c4.8xlarge
-      - m3.xlarge
-      - m3.2xlarge
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
       - m4.xlarge
       - m4.2xlarge
       - m4.4xlarge
