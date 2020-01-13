@@ -67,10 +67,10 @@ Parameters:
   RouteFailover:
     Description: Restore original route table entries when device recovers
     Type: String
-    Default: false
+    Default: no
     AllowedValues:
-      - true
-      - false
+      - yes
+      - no
   BootstrapBucket:
     Type: String
     Description: Enter the name S3 Bucket Name containing the Bootstrap files
