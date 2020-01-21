@@ -10635,8 +10635,7 @@
                                     <enable>no</enable>
                                 </lldp>
                                 <ip>
-                                    <entry name="fw_untrust_int"/>
-                                    <entry name="fw_untrust_sec_int"/>
+                                    <entry name="eth1"/>                              
                                 </ip>
                                 <interface-management-profile>mgt</interface-management-profile>
                             </layer3>
