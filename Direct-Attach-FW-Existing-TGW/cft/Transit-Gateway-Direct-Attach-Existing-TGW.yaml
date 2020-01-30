@@ -2,12 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Creates an Transit Gateway with a Security VPC
 Parameters:
   VpcSummaryRoute:
-    Description: This is a hub vpc, use rfc-1918
+    Description: Enter a sting with routes delimited by comma
     Type: String
-    Default: rfc-1918
-    AllowedValues:
-      - rfc-1918
-      - default
+    Default: 10.0.0.0/8,172.16.0.0/20
   splitroutes:
     Description: Share routing across both firewalls FW1 for Internet FW2 for east/west
     Type: String
