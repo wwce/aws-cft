@@ -2,19 +2,16 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Creates an Transit Gateway with a Security VPC
 Parameters:
   VpcSummaryRoute:
-    Description: This is a hub vpc, use rfc-1918
+    Description: Enter a sting with routes delimited by comma
     Type: String
-    Default: rfc-1918
-    AllowedValues:
-      - rfc-1918
-      - default
+    Default: 10.0.0.0/8,172.16.0.0/20
   splitroutes:
     Description: Share routing across both firewalls FW1 for Internet FW2 for east/west
     Type: String
-    Default: true
+    Default: yes
     AllowedValues:
-      - true
-      - false
+      - yes
+      - no
   KeyName:
     Description: AWS EC2 Intance ssh key
     Type: AWS::EC2::KeyPair::KeyName
@@ -68,10 +65,10 @@ Parameters:
   RouteFailover:
     Description: Restore original route table entries when device recovers
     Type: String
-    Default: false
+    Default: yes
     AllowedValues:
-      - true
-      - false
+      - yes
+      - no
   BootstrapBucket:
     Type: String
     Description: Enter the name S3 Bucket Name containing the Bootstrap files
