@@ -1,5 +1,5 @@
 """
-Paloaltonetworks TransitGatewayInitialiseLambda.py
+Paloaltonetworks setRouteTablelambda.py
 
 Script triggered from a custom resource.  The script performs two funcitons
 

@@ -87,23 +87,22 @@ Parameters:
       template
   TGWID:
     Type: String
-    Default: tgw-08baxxxxx
+    Default: tgw-08ba52ffc2d66b864
     Description: Transit Gateway resource ID (i.e. tgw-xxxxxx)
     AllowedPattern: .+
   PanoramaVPCAttachmentId:
-
     Type: String
-    Default: tgw-attach-xxx
+    Default: tgw-attach-0bb8e927237e02390
     Description: AttachmentId of Mgt VPC which contains panorama
   AssociatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-04bxxxx
+    Default: tgw-rtb-086a2d171894f2d90
     Description: Transit Gateway Route Table associated with security VPCs
       (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
   PropagatedTGWRouteTableID:
     Type: String
-    Default: tgw-rtb-0806a3f895190d22a
+    Default: tgw-rtb-0aa9a19530e896ce8
     Description: Transit Gateway Route Table associated with spoke VPCs
       VPC attachment (i.e. tgw-rtb-xxxxxx)
     AllowedPattern: .+
@@ -1449,6 +1448,10 @@ Resources:
       - "LambdaRouteTableAz2"
     Properties:
       ServiceToken: !GetAtt 'TransitGatewayInitialiseLambda.Arn'
+      MgtVPCRouteTable:
+        Ref: "PropagatedTGWRouteTableID"
+      FwInAtachment:
+        Ref: "TGWAttachment"
       routes_to_add:
         Ref: "VpcSummaryRoute"
       route_tables:

@@ -7,6 +7,21 @@ The default account for the firewalls is
 
 panadmin/Pal0Alt0123!
 
+# Overview of Demo
+
+- The template deploys the following resoureces
+- Security VPC with a firewall in two Availability Zones
+- 2 x Spoke VPCs with Web servers in each VPC
+- Lambda function to provide firewall failover "TransitGatewayRouteMonitorLambda.py" 
+
+# TransitGatewayRouteMonitorLambda
+
+The lambda function runs on cloudwatch timer based trigger.   The lambda function runs wwithin the security VPC in the lambda subnet. 
+The lambda function makes an api call to each firewalls trust interface to determine its availability.  In the event of a failure the function will modify any routes in the relevant VPC route table that use the failed firewalls ENI as a next hop.  The route is updated with the ENI of the backup firewall. 
+Several lambda environment variables exist that modifies the default behaviour 
+
+- Splitroutes - Determines if the same firewall is used for East/West and Internet connections. The default is 'yes' and traffic is divided over both firewalls.
+- Preempt - Determines if a failed firewall is immediately returned to service when it becomes available. The default is 'yes' and the failed firewall will be used to process traffic as soon as it becomes available.
 
 # AWS Transit VPC with VM-Series
 
