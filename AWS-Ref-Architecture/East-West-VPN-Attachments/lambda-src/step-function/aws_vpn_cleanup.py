@@ -8,7 +8,8 @@ import xml.etree.ElementTree as ET
 import urllib
 import ssl
 import time
-ec2_client = boto3.client('ec2', region_name = 'eu-west-1')
+
+ec2_client = boto3.client('ec2', region_name='us-east-1')
 from pprint import pprint
 
 def delete_cgw(cgwId, DryRun=False):

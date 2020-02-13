@@ -402,7 +402,6 @@ def lambda_handler(event, context):
     logger.info('Untrust AZ1 subnet is {}'.format(untrustAZ1_subnet_cidr))
     untrustAZ2_subnet_cidr = lib.find_subnet_by_id(untrustAZ2_subnet)['CidrBlock']
     logger.info('Untrust AZ2 subnet is {}'.format(untrustAZ2_subnet_cidr))
-
     cgw1Tag = fw1instanceId
     cgw2Tag = fw2instanceId
     tag1 = fw1instanceId

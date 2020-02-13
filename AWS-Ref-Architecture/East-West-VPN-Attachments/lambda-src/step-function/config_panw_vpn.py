@@ -41,6 +41,8 @@ fw1_mgmt_ip = os.environ['fw1MgmtIp']
 fw2_mgmt_ip = os.environ['fw2MgmtIp']
 fw1_untrust_ip = os.environ['fw1UntrustIp']
 fw2_untrust_ip = os.environ['fw2UntrustIp']
+fw1_untrust_pub_ip = os.environ['fw1UntrustPubIp']
+fw2_untrust_pub_ip = os.environ['fw2UntrustPubIp']
 fw1_untrust_sec_ip = os.environ['fw2UntrustSecIp']
 fw2_untrust_sec_ip = os.environ['fw2UntrustSecIp']
 fw1_trust_ip = os.environ['fw1TrustIp']
@@ -328,7 +330,8 @@ def lambda_handler(event, context):
     fw1_sec_vpnId = event.get('fw1_sec_vpnId')
     fw2_sec_vpnId = event.get('fw2_sec_vpnId')
     logger.info("Got Event {}".format(event))
-
+    fw1_mgmt_ip = fw1_untrust_pub_ip
+    fw2_mgmt_ip = fw2_untrust_pub_ip
 
 
     trustAZ1_subnet_cidr = find_subnet_by_id(trustAZ1_subnet)['CidrBlock']
