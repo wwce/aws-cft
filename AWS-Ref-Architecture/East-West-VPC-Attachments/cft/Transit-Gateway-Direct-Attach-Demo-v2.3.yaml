@@ -19,7 +19,7 @@ Parameters:
   apikey:
     Description: Api key for firewall management
     Type: String
-    Default: LUFRPT1qS2xCRmZ6WVMrREtrK00yUGt4dVRna2lkY1U9cmgyaE93L3VoZ2U3WUgxeFpGVE1wOUNtdlM2S0Z5Z25ObG8wbmZoNXpuWT0=
+    Default: LUFRPT1wa1VtR2RyaUl5RTM2V3R3blkrRVRrNmNLVEE9cmgyaE93L3VoZ2U3WUgxeFpGVE1weFVraUNUQ0JvemN3bnU2aWM5SzZyMklIREdnM1gxM1MyVlNHOHVqM3gxMA==
   VpcAzs:
     Type: List<AWS::EC2::AvailabilityZone::Name>
     Description: Select 2 AZs
