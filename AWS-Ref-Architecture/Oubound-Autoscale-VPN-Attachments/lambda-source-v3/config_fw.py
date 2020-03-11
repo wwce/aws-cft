@@ -42,7 +42,7 @@ sys.path.append('asglib/')
 
 from botocore.exceptions import ClientError
 
-pa_asn = os.environ['pa_asn']
+pa_asn = os.environ['N1Asn']
 
 api_key = os.environ['apikey']
 
@@ -445,7 +445,7 @@ def lambda_handler(event, context):
     fw1_untrust_ip = event.get('fwUntrustPrivIP')
     fw1_untrust_pub_ip = event.get('fwUntrustPubIP')
     untrustAZ1_subnet = event.get('fwUntrustSubnet')
-    trustAZ1_subnet = os.environ['trustAZ1Subnet']
+    trustAZ1_subnet = event.get('fwTrustSubnet')
     vpc_cidr_block = os.environ['VpcCidrBlock']
     fw1instanceId = event['EC2InstanceId']
     fw1_mgmt_ip = event['fwMgmtIP']
@@ -466,8 +466,9 @@ def lambda_handler(event, context):
                                        fw1_untrust_pub_ip, api_key,
                                        trustAZ1_subnet_cidr, untrustAZ1_subnet_cidr, pa_asn)
     logger.info('Response from firewall setup is {}'.format(res1))
-    panCommit(fw1_mgmt_ip, api_key, message="Updated route table and address object")
-
+    logger.info('Commiting changes to fw')
+    commit_status = panCommit(fw1_mgmt_ip, api_key, message="Updated route table and address object")
+    logger.info('Response from commit {}'.format(commit_status))
     if res1:
         logger.info('Setting config_fw_success')
         data = {
