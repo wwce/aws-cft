@@ -80,6 +80,12 @@ Parameters:
     MaxLength: '18'
     AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
     ConstraintDescription: must be a valid CIDR range in the format of x.x.x.x/x
+  PropTagName:
+    Type: String
+    Default: 'Propagate'
+  PropTagValue:
+    Type: String
+    Default: 'NS'
   Debug:
     Type: String
     Default: 'No'
@@ -1670,6 +1676,10 @@ Resources:
           Region: !Ref 'AWS::Region'
           pa_asn: !Ref 'ASNNumber'
           apikey: !Ref 'apikey'
+          VpcCidrBlock: !FindInMap
+                  - CidrBlockMap
+                  - VpcCidrBlock
+                  - CidrBlock
 
       VpcConfig:
         SecurityGroupIds:
@@ -1838,6 +1848,8 @@ Resources:
       Environment:
         Variables:
           Region: !Ref 'AWS::Region'
+          tagname: !Ref 'PropTagName'
+          tagvalue: !Ref 'PropTagValue'
           table_name: !Join
             - '-'
             - - BgpTunnelIpPool
