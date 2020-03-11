@@ -107,6 +107,7 @@ def get_vpn_connections():
                                                                    {'Name': 'state',
                                                                     'Values': ['available', 'pending']}])
     attachment_list = attachments.get('TransitGatewayAttachments')
+    logger.info('Found vpn Attachments to process {}'.format(attachments))
     if len(attachment_list) > 0:
         for vpn_attachment in attachment_list:
             if vpn_attachment.get('ResourceId'):
@@ -157,6 +158,7 @@ def get_attachment_state(attachment):
 def lambda_handler(event, context):
 
     logger.info('Got event {}'.format(event))
+
     TransitGatewayRouteTableId = os.environ['tgwRouteId']
     tagname = os.environ['tagname']
     tagvalue = os.environ['tagvalue']
@@ -171,9 +173,11 @@ def lambda_handler(event, context):
     for table in tables:
         tgws.append(table.get('TransitGatewayRouteTableId'))
 
-    logger.info('These tables are tagged for East West Route Propagation {}'.format(tgws))
+    logger.info('These tables are tagged for Propagation {}'.format(tgws))
     #
     #
+    # Wait for attachments to be available post creation
+    time.sleep(60)
     attachments = get_vpn_connections()
     for attachment in attachments:
         while True:
