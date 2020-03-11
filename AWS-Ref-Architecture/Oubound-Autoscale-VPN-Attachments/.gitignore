@@ -1,0 +1,12 @@
+/lambda-src/
+.idea/$CACHE_FILE$
+.idea/.gitignore
+.idea/Oubound-Autoscale-VPN-Attachments.iml
+.idea/dictionaries
+.idea/inspectionProfiles/
+.idea/misc.xml
+.idea/modules.xml
+.idea/vagrant.xml
+.idea/vcs.xml
+cft/test.yaml
+
