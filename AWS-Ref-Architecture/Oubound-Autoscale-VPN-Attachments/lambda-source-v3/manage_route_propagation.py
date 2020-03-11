@@ -155,17 +155,16 @@ def get_attachment_state(attachment):
 
 
 def lambda_handler(event, context):
-    primary_prepend_length = '1'
-    secondary_prepend_length = '2'
+
+    logger.info('Got event {}'.format(event))
     TransitGatewayRouteTableId = os.environ['tgwRouteId']
-    # update_as_path(fw1, export_rule, api_key, primary_prepend_length)
-    # panCommit(fw1, api_key, message="")
-    # update_as_path(fw2, export_rule, api_key, secondary_prepend_length)
-    # panCommit(fw2, api_key, message="")
+    tagname = os.environ['tagname']
+    tagvalue = os.environ['tagvalue']
+
 
     tgws = []
     table_list = ec2_client.describe_transit_gateway_route_tables(Filters=[
-        {'Name': 'tag:Propagate', 'Values': ['EW']}
+        {'Name': 'tag:'+tagname, 'Values': [tagvalue]}
     ])
     tables = table_list.get('TransitGatewayRouteTables')
 
