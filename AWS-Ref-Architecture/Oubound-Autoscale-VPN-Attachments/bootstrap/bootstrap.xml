@@ -10103,7 +10103,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
                   <enable>no</enable>
                 </lldp>
                 <ip>
-                  <entry name="eth1"/>
+                  <entry name="fw_untrust_int"/>
                 </ip>
                 <interface-management-profile>mgt</interface-management-profile>
               </layer3>
@@ -10681,7 +10681,7 @@ This appid covers the traffic between public VMware server and VUM or UMDS, but 
             <entry name="fw_untrust_pub_ip">
               <ip-netmask>10.253.100.241</ip-netmask>
             </entry>
-            <entry name="eth1">
+            <entry name="fw_untrust_int">
               <ip-netmask>172.16.11.196/24</ip-netmask>
             </entry>
           </address>
